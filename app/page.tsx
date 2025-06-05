@@ -62,8 +62,15 @@ export default function Dashboard() {
           setRegistrationData(chartData)
 
           // Calculate stats from registrations
-          const totalReceived = registrations.reduce((sum: number, reg: any) => sum + (reg.fee_paid || 0), 0)
-          const pendingAmount = registrations.reduce((sum: number, reg: any) => sum + (reg.fee_pending || 0), 0)
+          const totalReceived = registrations.reduce((sum: number, reg: any) => {
+            const feePaid = Number(reg.fee_paid) || 0
+            return sum + feePaid
+          }, 0)
+
+          const pendingAmount = registrations.reduce((sum: number, reg: any) => {
+            const feePending = Number(reg.fee_pending) || 0
+            return sum + feePending
+          }, 0)
 
           setStats((prev) => ({
             ...prev,
@@ -196,7 +203,9 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">Rs {stats.totalReceived.toLocaleString()}</div>
+              <div className="text-3xl font-bold">
+                Rs {stats.totalReceived > 0 ? stats.totalReceived.toLocaleString() : "0"}
+              </div>
               <div className="flex items-center space-x-1 mt-2">
                 <Award className="h-4 w-4 opacity-80" />
                 <p className="text-sm opacity-80">+8% from last month</p>
@@ -212,7 +221,9 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">Rs {stats.pendingAmount.toLocaleString()}</div>
+              <div className="text-3xl font-bold">
+                Rs {stats.pendingAmount > 0 ? stats.pendingAmount.toLocaleString() : "0"}
+              </div>
               <div className="flex items-center space-x-1 mt-2">
                 <Target className="h-4 w-4 opacity-80" />
                 <p className="text-sm opacity-80">-3% from last month</p>
