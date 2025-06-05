@@ -41,25 +41,54 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
   const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [latestStatus, setLatestStatus] = useState<string | null>(null)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const { user } = useAuth()
   const { toast } = useToast()
 
   const fetchStatusHistory = async () => {
     try {
       setLoading(true)
+      setFetchError(null)
       console.log(`Fetching status history for inquiry ${inquiryId}`)
-      const response = await fetch(`/api/inquiries/${inquiryId}/status`)
+
+      const response = await fetch(`/api/inquiries/${inquiryId}/status`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
       if (response.ok) {
         const data = await response.json()
         console.log("Status history data:", data)
-        setStatusHistory(Array.isArray(data) ? data : [])
+
+        if (Array.isArray(data)) {
+          setStatusHistory(data)
+          // Update the latest status from the history
+          if (data.length > 0) {
+            const latest = data[0] // Assuming data is sorted by created_at DESC
+            setLatestStatus(latest.status)
+            console.log("Latest status from history:", latest.status)
+          } else {
+            setLatestStatus(null)
+          }
+        } else {
+          console.warn("Received non-array data:", data)
+          setStatusHistory([])
+          setLatestStatus(null)
+        }
       } else {
-        console.error("Failed to fetch status history:", response.status)
+        console.error("Failed to fetch status history:", response.status, response.statusText)
         setStatusHistory([])
+        setLatestStatus(null)
+        setFetchError(`Failed to load status history (${response.status})`)
       }
     } catch (error) {
       console.error("Error fetching status history:", error)
       setStatusHistory([])
+      setLatestStatus(null)
+      setFetchError("Network error while loading status history")
     } finally {
       setLoading(false)
     }
@@ -70,6 +99,11 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
       fetchStatusHistory()
     }
   }, [open, inquiryId])
+
+  // Also fetch status when component mounts to show current status
+  useEffect(() => {
+    fetchStatusHistory()
+  }, [inquiryId])
 
   const handleSubmit = async () => {
     if (!selectedStatus || !user) {
@@ -105,14 +139,24 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
       if (response.ok) {
         const result = await response.json()
         console.log("Status update successful:", result)
+
+        // Update the latest status immediately
+        setLatestStatus(selectedStatus)
+
         toast({
           title: "Status Updated",
           description: "Inquiry status has been updated successfully.",
         })
         setSelectedStatus("")
         setComments("")
-        await fetchStatusHistory() // Refresh the history
-        onStatusUpdate?.()
+
+        // Wait a moment before refreshing to ensure database is updated
+        setTimeout(async () => {
+          await fetchStatusHistory()
+          onStatusUpdate?.()
+        }, 500)
+
+        setOpen(false) // Close the dialog
       } else {
         const errorData = await response.json()
         console.error("Status update failed:", errorData)
@@ -148,8 +192,34 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
   }
 
   const getCurrentStatusInfo = () => {
-    const status = statusOptions.find((s) => s.value === currentStatus)
+    // Use latestStatus from database first, then fallback to currentStatus prop
+    const statusToUse = latestStatus || currentStatus
+    const status = statusOptions.find((s) => s.value === statusToUse)
     return status || { value: "no_status", label: "No Status" }
+  }
+
+  const getStatusColor = (statusValue: string) => {
+    switch (statusValue) {
+      case "converted_enrolled":
+        return "bg-green-500"
+      case "not_interested":
+        return "bg-red-500"
+      case "scheduled_free_session":
+      case "attended_free_session":
+        return "bg-blue-500"
+      case "inquiry_valid":
+      case "inquiry_called":
+        return "bg-yellow-500"
+      case "student_seeking_info":
+      case "interested_not_decided":
+        return "bg-orange-500"
+      case "wants_to_speak":
+        return "bg-purple-500"
+      case "unreachable":
+        return "bg-gray-500"
+      default:
+        return "bg-blue-500"
+    }
   }
 
   const statusInfo = getCurrentStatusInfo()
@@ -165,7 +235,7 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
           }}
         >
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <div className={`w-2 h-2 rounded-full ${getStatusColor(statusInfo.value)}`} />
             <span className="text-xs">{statusInfo.label}</span>
           </div>
         </button>
@@ -334,6 +404,12 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
                           <span className="ml-2 text-xs">Loading...</span>
                         </div>
+                      </td>
+                    </tr>
+                  ) : fetchError ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-4 text-center text-red-500 text-xs">
+                        {fetchError}
                       </td>
                     </tr>
                   ) : statusHistory.length === 0 ? (

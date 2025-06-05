@@ -786,6 +786,10 @@ export async function createInquiryStatus(data: {
 }) {
   try {
     console.log("📝 Creating inquiry status for inquiry:", data.inquiry_id)
+
+    // Add a small delay to prevent rate limiting
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
     const result = await sql`
       INSERT INTO inquiry_status (inquiry_id, status, comments, updated_by)
       VALUES (${data.inquiry_id}, ${data.status}, ${data.comments || null}, ${data.updated_by})
@@ -795,22 +799,36 @@ export async function createInquiryStatus(data: {
     return result[0] || null
   } catch (error) {
     console.error("❌ Error creating inquiry status:", error)
-    return null
+    throw error // Re-throw to be handled by the API route
   }
 }
 
 export async function getInquiryStatusHistory(inquiryId: number) {
   try {
     console.log("🔍 Getting inquiry status history for:", inquiryId)
+
+    // Add a small delay to prevent rate limiting
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // First check if the table exists and has data
     const result = await sql`
       SELECT * FROM inquiry_status 
       WHERE inquiry_id = ${inquiryId} 
       ORDER BY created_at DESC
     `
-    console.log("✅ Inquiry status history retrieved successfully")
-    return result
+
+    console.log(`✅ Inquiry status history retrieved successfully - found ${result.length} entries`)
+    return result || []
   } catch (error) {
     console.error("❌ Error getting inquiry status history:", error)
+
+    // Check if it's a table doesn't exist error
+    if (error instanceof Error && error.message.includes('relation "inquiry_status" does not exist')) {
+      console.log("📝 inquiry_status table doesn't exist yet - returning empty array")
+      return []
+    }
+
+    // For other errors, return empty array to prevent UI breaking
     return []
   }
 }

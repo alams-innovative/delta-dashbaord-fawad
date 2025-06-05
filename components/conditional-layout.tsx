@@ -3,14 +3,16 @@
 import type React from "react"
 
 import { useAuth } from "@/components/auth-provider"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { NotificationPopup } from "@/components/notification-popup"
+import { useEffect } from "react"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
 
   console.log("🏗️ ConditionalLayout - pathname:", pathname, "isAuthenticated:", isAuthenticated, "isLoading:", isLoading)
 
@@ -19,6 +21,15 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const isPublicRoute = publicRoutes.includes(pathname)
 
   console.log("🔍 Route check - isPublicRoute:", isPublicRoute, "pathname:", pathname)
+
+  // Add this useEffect after the existing console.log
+  useEffect(() => {
+    // Only redirect if we're not loading and not authenticated and not on a public route
+    if (!isLoading && !isAuthenticated && !isPublicRoute) {
+      console.log("🚫 ConditionalLayout - redirecting to login")
+      router.replace("/login")
+    }
+  }, [isAuthenticated, isLoading, isPublicRoute, router])
 
   // Show loading spinner while auth is loading
   if (isLoading) {

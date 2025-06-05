@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useState, useEffect, type ReactNode, useContext } from "react"
+import { useRouter } from "next/navigation"
 
 interface User {
   id: string
@@ -59,6 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true)
   const [notifications, setNotifications] = useState<string[]>([])
   const [inquiries, setInquiries] = useState<Inquiry[]>([])
+  const router = useRouter()
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -200,7 +202,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error)
     } finally {
+      console.log("🗑️ Clearing user data...")
       setUser(null)
+      localStorage.removeItem("user")
+      console.log("✅ Logout complete")
+      router.push("/")
     }
   }
 

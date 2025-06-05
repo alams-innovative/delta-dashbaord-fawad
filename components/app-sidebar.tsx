@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import {
   Users,
   MessageSquare,
@@ -118,6 +119,14 @@ const menuItems = [
 
 export function AppSidebar() {
   const { user, logout, unreadCount } = useAuth()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    console.log("🚪 Logging out...")
+    await logout()
+    console.log("✅ Logout complete, redirecting to login")
+    router.replace("/login")
+  }
 
   const filteredItems = menuItems.filter((item) => user && item.roles.includes(user.role))
 
@@ -195,7 +204,7 @@ export function AppSidebar() {
         <Button
           variant="outline"
           className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300 hover:text-white font-semibold shadow-lg mb-3"
-          onClick={logout}
+          onClick={handleLogout}
         >
           <LogOut className="mr-2 h-4 w-4" />
           Logout
