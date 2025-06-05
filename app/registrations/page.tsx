@@ -15,7 +15,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Search, Users, UserCheck, Plus, GraduationCap, Loader2, Download } from "lucide-react"
+import {
+  Eye,
+  Edit,
+  Trash2,
+  Search,
+  Users,
+  UserCheck,
+  Plus,
+  GraduationCap,
+  Loader2,
+  Download,
+  Printer,
+} from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 
@@ -308,6 +320,482 @@ export default function RegistrationsPage() {
         variant: "destructive",
       })
     }
+  }
+
+  const handlePrintSlip = async (registration: Registration) => {
+    try {
+      // Calculate total fee and discount
+      const totalFee = registration.feePaid + registration.feePending
+      const currentDate = new Date()
+      const invoiceNo = `INV-${registration.id.toString().padStart(6, "0")}`
+      const systemCode = `SYS-${registration.id.toString().padStart(4, "0")}`
+
+      // Generate HTML for fee slip matching the Delta Education format
+      const slipContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Fee Voucher - ${registration.name}</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Arial', sans-serif;
+                line-height: 1.4;
+                color: #000;
+                background: white;
+                padding: 20px;
+                font-size: 12px;
+            }
+            
+            .voucher-container {
+                max-width: 600px;
+                margin: 0 auto;
+                border: 2px solid #000;
+                background: white;
+            }
+            
+            .header {
+                display: flex;
+                align-items: center;
+                padding: 15px;
+                border-bottom: 2px solid #000;
+            }
+            
+            .logo {
+                width: 80px;
+                height: 80px;
+                border: 2px solid #4338ca;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 15px;
+                background: #4338ca;
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            .company-info {
+                flex: 1;
+            }
+            
+            .company-name {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 3px;
+            }
+            
+            .company-address {
+                font-size: 12px;
+                margin-bottom: 3px;
+            }
+            
+            .company-contact {
+                font-size: 12px;
+                font-weight: bold;
+            }
+            
+            .voucher-title {
+                font-size: 16px;
+                font-weight: bold;
+                text-align: right;
+                margin-top: 10px;
+            }
+            
+            .date-payment-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 10px 15px;
+                border-bottom: 1px solid #000;
+                font-size: 11px;
+            }
+            
+            .invoice-section {
+                text-align: right;
+                padding-right: 15px;
+                padding-top: 5px;
+            }
+            
+            .session-section {
+                padding: 10px 15px;
+                border-bottom: 2px solid #000;
+                background: #f5f5f5;
+            }
+            
+            .session-title {
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            .student-details {
+                display: flex;
+                padding: 15px;
+                border-bottom: 2px solid #000;
+            }
+            
+            .student-left {
+                flex: 1;
+                margin-right: 20px;
+            }
+            
+            .student-right {
+                width: 200px;
+                text-align: right;
+            }
+            
+            .detail-row {
+                display: flex;
+                margin-bottom: 8px;
+            }
+            
+            .detail-label {
+                font-weight: bold;
+                width: 100px;
+                margin-right: 10px;
+            }
+            
+            .amount-section {
+                font-size: 14px;
+                font-weight: bold;
+            }
+            
+            .amount-large {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+            
+            .payment-summary {
+                display: flex;
+                padding: 15px;
+                border-bottom: 1px solid #000;
+            }
+            
+            .payment-left {
+                flex: 1;
+            }
+            
+            .payment-right {
+                width: 200px;
+                text-align: right;
+            }
+            
+            .summary-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 5px;
+                padding: 3px 0;
+            }
+            
+            .total-row {
+                border-top: 1px solid #000;
+                padding-top: 5px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            .amount-words {
+                text-align: center;
+                padding: 8px;
+                font-style: italic;
+                border-bottom: 1px solid #000;
+            }
+            
+            .notes-section {
+                padding: 15px;
+                border-bottom: 1px solid #000;
+                min-height: 80px;
+            }
+            
+            .notes-title {
+                font-weight: bold;
+                margin-bottom: 10px;
+            }
+            
+            .notes-box {
+                border: 1px dotted #000;
+                min-height: 50px;
+                padding: 5px;
+            }
+            
+            .footer {
+                text-align: center;
+                padding: 10px;
+                font-size: 10px;
+                color: #666;
+            }
+            
+            @media print {
+                body { padding: 0; }
+                .voucher-container { box-shadow: none; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="voucher-container">
+            <!-- Header Section -->
+            <div class="header">
+                <div class="logo">
+                    DELTA<br>EDU
+                </div>
+                <div class="company-info">
+                    <div class="company-name">Delta Education Systems.</div>
+                    <div class="company-address">Khadam Ali Road, SIAI KOT, PAKISTAN</div>
+                    <div class="company-contact">Mobile: 03023556989, preparations.com.pk</div>
+                </div>
+                <div class="voucher-title">Fee Voucher Paid</div>
+            </div>
+            
+            <!-- Date and Payment Method -->
+            <div class="date-payment-row">
+                <div>
+                    <strong>Date:</strong> ${currentDate.toLocaleDateString("en-GB")}<br>
+                    <strong>Time:</strong> ${currentDate.toLocaleTimeString("en-GB", { hour12: false })}
+                </div>
+                <div>
+                    <strong>Cash / Mobile / Card / Bank</strong>
+                </div>
+                <div class="invoice-section">
+                    <strong>Invoice No.</strong> ${invoiceNo}<br>
+                    <strong>Internal System Code:</strong> ${systemCode}
+                </div>
+            </div>
+            
+            <!-- Session Section -->
+            <div class="session-section">
+                <div class="session-title">Session &nbsp;&nbsp;&nbsp;&nbsp; ACADEMIC SESSION 2025 (ACS25)</div>
+            </div>
+            
+            <!-- Student Details -->
+            <div class="student-details">
+                <div class="student-left">
+                    <div class="detail-row">
+                        <span class="detail-label">Student Name</span>
+                        <span>${registration.name.toUpperCase()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Parents Name</span>
+                        <span>${registration.fatherName}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Address</span>
+                        <span>PAKISTAN</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Contact</span>
+                        <span>${registration.phone}</span>
+                    </div>
+                </div>
+                <div class="student-right">
+                    <div class="amount-section">
+                        <div style="margin-bottom: 10px;">Amount in Pak Rupees</div>
+                        <div class="amount-large">Rs. ${totalFee.toLocaleString("en-PK")}.00</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Summary -->
+            <div class="payment-summary">
+                <div class="payment-left">
+                    <div class="detail-row">
+                        <span class="detail-label">Total Paid</span>
+                        <span>Rs ${registration.feePaid.toLocaleString("en-PK")}.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Due</span>
+                        <span>Rs. ${registration.feePending.toLocaleString("en-PK")}.00</span>
+                    </div>
+                    <div class="detail-row" style="margin-top: 15px;">
+                        <span class="detail-label">Pending Payment Due on:</span>
+                        <span>${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB")}</span>
+                    </div>
+                </div>
+                <div class="payment-right">
+                    <div class="summary-row">
+                        <span><strong>Subtotal:</strong></span>
+                        <span><strong>Rs ${totalFee.toLocaleString("en-PK")}.00</strong></span>
+                    </div>
+                    <div class="summary-row">
+                        <span><strong>Discount</strong></span>
+                        <span><strong>Rs. ${registration.concession.toLocaleString("en-PK")}.00</strong></span>
+                    </div>
+                    <div class="summary-row total-row">
+                        <span><strong>Total:</strong></span>
+                        <span><strong>Rs ${(totalFee - registration.concession).toLocaleString("en-PK")}.00</strong></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Amount in Words -->
+            <div class="amount-words">
+                (${numberToWords(totalFee - registration.concession)} Rupee Only)
+            </div>
+            
+            <!-- Dues Notice -->
+            <div style="padding: 8px 15px; border-bottom: 1px solid #000; font-size: 11px;">
+                Dues once paid are not-refundable
+            </div>
+            
+            <!-- Notes Section -->
+            <div class="notes-section">
+                <div class="notes-title">Notes</div>
+                <div class="notes-box">
+                    ${registration.comments || ""}
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+                Delta College Reserves the Rights as per the internal policy, terms and conditions (Electronic Receipt)
+            </div>
+        </div>
+        
+        <script>
+            function numberToWords(num) {
+                const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+                const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+                const thousands = ['', 'Thousand', 'Million', 'Billion'];
+                
+                if (num === 0) return 'Zero';
+                
+                function convertHundreds(n) {
+                    let result = '';
+                    if (n >= 100) {
+                        result += ones[Math.floor(n / 100)] + ' Hundred ';
+                        n %= 100;
+                    }
+                    if (n >= 20) {
+                        result += tens[Math.floor(n / 10)] + ' ';
+                        n %= 10;
+                    } else if (n >= 10) {
+                        result += teens[n - 10] + ' ';
+                        return result;
+                    }
+                    if (n > 0) {
+                        result += ones[n] + ' ';
+                    }
+                    return result;
+                }
+                
+                let result = '';
+                let thousandCounter = 0;
+                
+                while (num > 0) {
+                    if (num % 1000 !== 0) {
+                        result = convertHundreds(num % 1000) + thousands[thousandCounter] + ' ' + result;
+                    }
+                    num = Math.floor(num / 1000);
+                    thousandCounter++;
+                }
+                
+                return result.trim();
+            }
+            
+            window.onload = function() {
+                // Add print button
+                const printButton = document.createElement("button");
+                printButton.innerHTML = "🖨️ Print Fee Voucher";
+                printButton.style.cssText = \`
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #4338ca;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    z-index: 1000;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    font-size: 14px;
+                \`;
+                printButton.onclick = () => window.print();
+                document.body.appendChild(printButton);
+            }
+        </script>
+    </body>
+    </html>
+    `
+
+      // Create a new window with the slip content
+      const newWindow = window.open("", "_blank")
+      if (newWindow) {
+        newWindow.document.write(slipContent)
+        newWindow.document.close()
+      }
+
+      toast({
+        title: "Fee Voucher Generated",
+        description: "Fee voucher opened in new window",
+      })
+    } catch (error) {
+      console.error("Error generating fee voucher:", error)
+      toast({
+        title: "Error",
+        description: "Failed to generate fee voucher",
+        variant: "destructive",
+      })
+    }
+  }
+  const numberToWords = (num: number): string => {
+    const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
+    const teens = [
+      "Ten",
+      "Eleven",
+      "Twelve",
+      "Thirteen",
+      "Fourteen",
+      "Fifteen",
+      "Sixteen",
+      "Seventeen",
+      "Eighteen",
+      "Nineteen",
+    ]
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+    const thousands = ["", "Thousand", "Million", "Billion"]
+
+    if (num === 0) return "Zero"
+
+    function convertHundreds(n: number): string {
+      let result = ""
+      if (n >= 100) {
+        result += ones[Math.floor(n / 100)] + " Hundred "
+        n %= 100
+      }
+      if (n >= 20) {
+        result += tens[Math.floor(n / 10)] + " "
+        n %= 10
+      } else if (n >= 10) {
+        result += teens[n - 10] + " "
+        return result
+      }
+      if (n > 0) {
+        result += ones[n] + " "
+      }
+      return result
+    }
+
+    let result = ""
+    let thousandCounter = 0
+
+    while (num > 0) {
+      if (num % 1000 !== 0) {
+        result = convertHundreds(num % 1000) + thousands[thousandCounter] + " " + result
+      }
+      num = Math.floor(num / 1000)
+      thousandCounter++
+    }
+
+    return result.trim()
   }
 
   const filteredRegistrations = (registrations || []).filter(
@@ -754,6 +1242,15 @@ export default function RegistrationsPage() {
                               title="Download PDF"
                             >
                               <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePrintSlip(registration)}
+                              className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                              title="Print Fee Slip"
+                            >
+                              <Printer className="h-4 w-4" />
                             </Button>
                             {user?.role === "super_admin" && (
                               <Button
