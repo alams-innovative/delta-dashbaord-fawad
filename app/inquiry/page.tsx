@@ -283,7 +283,7 @@ export default function InquiryPage() {
                   htmlFor="checkboxField"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Attend 5th June Session
+                  Attend Session
                 </Label>
               </div>
 

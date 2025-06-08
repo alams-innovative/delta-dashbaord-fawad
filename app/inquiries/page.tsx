@@ -507,7 +507,7 @@ export default function InquiriesPage() {
                       <TableHead className="min-w-[100px]">Phone</TableHead>
                       <TableHead className="min-w-[120px] hidden md:table-cell">Email</TableHead>
                       <TableHead className="min-w-[80px] hidden lg:table-cell">Source</TableHead>
-                      <TableHead className="w-[80px] hidden lg:table-cell">5th June</TableHead>
+                      <TableHead className="w-[80px] hidden lg:table-cell">Attend Session</TableHead>
                       <TableHead
                         className="cursor-pointer select-none min-w-[100px] hidden lg:table-cell"
                         onClick={handleSort}
@@ -676,7 +676,7 @@ export default function InquiriesPage() {
                                   variant="outline"
                                   className="bg-green-50 text-green-700 border-green-200 text-xs"
                                 >
-                                  <CheckCircle className="h-3 w-3 mr-1" /> 5th June
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Attend Session
                                 </Badge>
                               )}
                             </div>
@@ -963,7 +963,7 @@ export default function InquiriesPage() {
                     className="rounded border-gray-300"
                   />
                   <Label htmlFor="editCheckboxField" className="text-gray-700 font-medium">
-                    Attend 5th June Session
+                    Attend Session
                   </Label>
                 </div>
                 <div className="sticky bottom-0 bg-white border-t pt-4 flex space-x-3">
@@ -1027,7 +1027,7 @@ export default function InquiriesPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-gray-700 font-medium">Attend 5th June Session</Label>
+                    <Label className="text-gray-700 font-medium">Attend Session</Label>
                     <div className="p-3 bg-gray-50 rounded-md border">
                       {viewingInquiry.checkboxField ? "Yes" : "No"}
                     </div>
@@ -1067,7 +1067,7 @@ export default function InquiriesPage() {
                     {convertingInquiry?.email || "Not provided"}
                   </div>
                   <div>
-                    <span className="font-medium text-blue-700">5th June Session:</span>{" "}
+                    <span className="font-medium text-blue-700">Attend Session:</span>{" "}
                     {convertingInquiry?.checkboxField ? "Yes" : "No"}
                   </div>
                 </div>

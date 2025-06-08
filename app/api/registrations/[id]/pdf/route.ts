@@ -18,9 +18,23 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     // Format Pakistani numbers
     const formatPKR = (amount: number) => {
-      if (amount === 0) return "0"
-      return amount.toLocaleString("en-PK")
+      if (amount === 0) return "0.00"
+      return amount.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
     }
+
+    // Calculate total
+    const feePaid = registration.fee_paid || 0
+    const feePending = registration.fee_pending || 0
+    const concession = registration.concession || 0
+    const total = feePending
+
+    // Format date
+    const today = new Date()
+    const formattedDate = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`
+    const formattedTime = `${today.getHours().toString().padStart(2, "0")}:${today.getMinutes().toString().padStart(2, "0")}:${today.getSeconds().toString().padStart(2, "0")}`
 
     // Generate HTML for PDF
     const htmlContent = `
@@ -29,293 +43,277 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Student Registration - ${registration.name}</title>
+        <title>Fee Voucher - ${registration.name}</title>
         <style>
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
+                font-family: Arial, sans-serif;
             }
             
             body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                background: #f8f9fa;
-                padding: 20px;
+                font-size: 12px;
+                line-height: 1.4;
             }
             
             .container {
+                width: 100%;
                 max-width: 800px;
                 margin: 0 auto;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                overflow: hidden;
+                border: 1px solid #000;
             }
             
             .header {
-                background: linear-gradient(135deg, #10b981, #059669);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px;
+                border-bottom: 1px solid #000;
+            }
+            
+            .logo-section {
+                display: flex;
+                align-items: center;
+            }
+            
+            .logo {
+                width: 60px;
+                height: 60px;
+                background-color: #4338ca;
                 color: white;
-                padding: 30px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                margin-right: 10px;
+            }
+            
+            .logo-text {
+                font-weight: bold;
+                font-size: 14px;
                 text-align: center;
             }
             
-            .header h1 {
-                font-size: 2.5rem;
-                margin-bottom: 10px;
-                font-weight: 700;
+            .address {
+                font-size: 11px;
+                line-height: 1.3;
             }
             
-            .header p {
-                font-size: 1.1rem;
-                opacity: 0.9;
+            .voucher-title {
+                font-weight: bold;
+                font-size: 16px;
             }
             
-            .content {
-                padding: 40px;
+            .info-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 5px 10px;
+                border-bottom: 1px solid #000;
             }
             
-            .section {
-                margin-bottom: 30px;
-                padding: 20px;
-                border: 1px solid #e5e7eb;
-                border-radius: 8px;
-                background: #f9fafb;
+            .info-left, .info-right {
+                display: flex;
             }
             
-            .section h2 {
-                color: #10b981;
-                font-size: 1.3rem;
-                margin-bottom: 15px;
-                padding-bottom: 8px;
-                border-bottom: 2px solid #10b981;
+            .info-left > div, .info-right > div {
+                margin-right: 15px;
             }
             
-            .info-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                gap: 15px;
+            .session-row {
+                padding: 8px 10px;
+                border-bottom: 1px solid #000;
+                font-weight: bold;
             }
             
-            .info-item {
+            .student-info {
+                display: flex;
+                border-bottom: 1px solid #000;
+            }
+            
+            .student-details {
+                width: 50%;
+                padding: 10px;
+            }
+            
+            .student-details div {
+                margin-bottom: 5px;
+            }
+            
+            .amount-section {
+                width: 50%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: flex-end;
+                padding: 10px;
+            }
+            
+            .amount-title {
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            
+            .amount-value {
+                font-size: 18px;
+                font-weight: bold;
+            }
+            
+            .payment-info {
+                display: flex;
+                border-bottom: 1px solid #000;
+            }
+            
+            .payment-left {
+                width: 50%;
+                padding: 10px;
+            }
+            
+            .payment-left div {
+                margin-bottom: 5px;
+                display: flex;
+                justify-content: space-between;
+            }
+            
+            .payment-right {
+                width: 50%;
+                padding: 10px;
                 display: flex;
                 flex-direction: column;
             }
             
-            .info-label {
-                font-weight: 600;
-                color: #374151;
-                font-size: 0.9rem;
-                margin-bottom: 4px;
-            }
-            
-            .info-value {
-                color: #1f2937;
-                font-size: 1rem;
-                padding: 8px 12px;
-                background: white;
-                border: 1px solid #d1d5db;
-                border-radius: 6px;
-            }
-            
-            .fee-section {
-                background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-                border: 1px solid #0ea5e9;
-            }
-            
-            .fee-section h2 {
-                color: #0ea5e9;
-                border-bottom-color: #0ea5e9;
-            }
-            
-            .fee-item {
+            .payment-right div {
+                margin-bottom: 5px;
                 display: flex;
                 justify-content: space-between;
-                align-items: center;
-                padding: 12px 16px;
-                background: white;
-                border: 1px solid #e0f2fe;
-                border-radius: 6px;
-                margin-bottom: 10px;
             }
             
-            .fee-label {
-                font-weight: 600;
-                color: #0c4a6e;
+            .total-row {
+                font-weight: bold;
             }
             
-            .fee-amount {
-                font-weight: 700;
-                font-size: 1.1rem;
-            }
-            
-            .fee-paid { color: #059669; }
-            .fee-pending { color: #dc2626; }
-            .fee-concession { color: #7c3aed; }
-            
-            .comments-section {
-                background: linear-gradient(135deg, #fef3c7, #fde68a);
-                border: 1px solid #f59e0b;
-            }
-            
-            .comments-section h2 {
-                color: #92400e;
-                border-bottom-color: #f59e0b;
-            }
-            
-            .comments-text {
-                background: white;
-                padding: 15px;
-                border-radius: 6px;
-                border: 1px solid #fde68a;
-                min-height: 60px;
+            .zero-rupee {
+                padding: 8px 10px;
+                border-bottom: 1px solid #000;
                 font-style: italic;
-                color: #78350f;
+                text-align: center;
+            }
+            
+            .disclaimer {
+                padding: 8px 10px;
+                border-bottom: 1px solid #000;
+                font-size: 11px;
             }
             
             .footer {
-                background: #f3f4f6;
-                padding: 20px;
+                padding: 8px 10px;
                 text-align: center;
-                border-top: 1px solid #e5e7eb;
-                color: #6b7280;
-                font-size: 0.9rem;
-            }
-            
-            .status-badge {
-                display: inline-block;
-                padding: 6px 12px;
-                border-radius: 20px;
-                font-size: 0.85rem;
-                font-weight: 600;
-                text-transform: uppercase;
-            }
-            
-            .status-paid {
-                background: #d1fae5;
-                color: #065f46;
-                border: 1px solid #10b981;
-            }
-            
-            .status-pending {
-                background: #fed7aa;
-                color: #9a3412;
-                border: 1px solid #f97316;
+                font-size: 10px;
+                font-style: italic;
             }
             
             @media print {
-                body { background: white; padding: 0; }
-                .container { box-shadow: none; }
+                .container {
+                    border: 1px solid #000;
+                }
             }
         </style>
     </head>
     <body>
         <div class="container">
+            <!-- Header -->
             <div class="header">
-                <h1>🎓 Student Registration</h1>
-                <p>Official Registration Document</p>
+                <div class="logo-section">
+                    <div class="logo">
+                        <div class="logo-text">DELTA</div>
+                        <div class="logo-text">EDU</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: bold; font-size: 14px;">Delta Education Systems.</div>
+                        <div class="address">Khadam Ali Road, SIAI KOT, PAKISTAN</div>
+                        <div class="address">Mobile: 03023556989, preparations.com.pk</div>
+                    </div>
+                </div>
+                <div class="voucher-title">Fee Voucher Paid</div>
             </div>
             
-            <div class="content">
-                <!-- Personal Information -->
-                <div class="section">
-                    <h2>👤 Personal Information</h2>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Student Name</span>
-                            <span class="info-value">${registration.name}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Father's Name</span>
-                            <span class="info-value">${registration.father_name}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">CNIC</span>
-                            <span class="info-value">${registration.cnic || "Not provided"}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Gender</span>
-                            <span class="info-value">${registration.gender || "Not specified"}</span>
-                        </div>
+            <!-- Date and Invoice Info -->
+            <div class="info-row">
+                <div class="info-left">
+                    <div>Date: ${formattedDate}</div>
+                    <div>Time: ${formattedTime}</div>
+                </div>
+                <div class="info-right">
+                    <div>Invoice No. INV-${registration.id.toString().padStart(6, "0")}</div>
+                    <div>Internal System Code: SYS-${registration.id.toString().padStart(4, "0")}</div>
+                </div>
+            </div>
+            
+            <!-- Session -->
+            <div class="session-row">
+                <div>Session</div>
+                <div>ACADEMIC SESSION ${new Date().getFullYear()} (ACS${new Date().getFullYear().toString().slice(-2)})</div>
+            </div>
+            
+            <!-- Student Info -->
+            <div class="student-info">
+                <div class="student-details">
+                    <div><strong>Student Name</strong> ${registration.name}</div>
+                    <div><strong>Parents Name</strong> ${registration.father_name}</div>
+                    <div><strong>Address</strong> PAKISTAN</div>
+                    <div><strong>Contact</strong> ${registration.phone}</div>
+                </div>
+                <div class="amount-section">
+                    <div class="amount-title">Amount in Pak Rupees</div>
+                    <div class="amount-value">Rs. ${formatPKR(feePaid)}</div>
+                </div>
+            </div>
+            
+            <!-- Payment Info -->
+            <div class="payment-info">
+                <div class="payment-left">
+                    <div>
+                        <span>Total Paid</span>
+                        <span>Rs ${formatPKR(feePaid)}</span>
+                    </div>
+                    <div>
+                        <span>Total Due</span>
+                        <span>Rs. ${formatPKR(feePending)}</span>
+                    </div>
+                    <div>
+                        <span>Pending Payment Due on:</span>
+                        <span>${feePending > 0 ? new Date(today.setMonth(today.getMonth() + 1)).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A"}</span>
                     </div>
                 </div>
-                
-                <!-- Contact Information -->
-                <div class="section">
-                    <h2>📞 Contact Information</h2>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Phone Number</span>
-                            <span class="info-value">${registration.phone}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Email Address</span>
-                            <span class="info-value">${registration.email || "Not provided"}</span>
-                        </div>
+                <div class="payment-right">
+                    <div>
+                        <span>Subtotal:</span>
+                        <span>Rs ${formatPKR(feePaid)}</span>
                     </div>
-                </div>
-                
-                <!-- Fee Information -->
-                <div class="section fee-section">
-                    <h2>💰 Fee Information</h2>
-                    <div class="fee-item">
-                        <span class="fee-label">Fee Paid</span>
-                        <span class="fee-amount fee-paid">Rs ${formatPKR(registration.fee_paid || 0)}</span>
+                    <div>
+                        <span>Discount</span>
+                        <span>Rs. ${formatPKR(concession)}</span>
                     </div>
-                    <div class="fee-item">
-                        <span class="fee-label">Fee Pending</span>
-                        <span class="fee-amount fee-pending">Rs ${formatPKR(registration.fee_pending || 0)}</span>
-                    </div>
-                    <div class="fee-item">
-                        <span class="fee-label">Concession</span>
-                        <span class="fee-amount fee-concession">Rs ${formatPKR(registration.concession || 0)}</span>
-                    </div>
-                    <div class="fee-item">
-                        <span class="fee-label">Payment Status</span>
-                        <span class="status-badge ${(registration.fee_pending || 0) === 0 ? "status-paid" : "status-pending"}">
-                            ${(registration.fee_pending || 0) === 0 ? "Fully Paid" : "Payment Pending"}
-                        </span>
-                    </div>
-                </div>
-                
-                <!-- Comments -->
-                <div class="section comments-section">
-                    <h2>📝 Comments</h2>
-                    <div class="comments-text">
-                        ${registration.comments || "No additional comments provided."}
-                    </div>
-                </div>
-                
-                <!-- Registration Details -->
-                <div class="section">
-                    <h2>📅 Registration Details</h2>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Registration Date</span>
-                            <span class="info-value">${new Date(registration.created_at).toLocaleDateString("en-PK", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Registration ID</span>
-                            <span class="info-value">#${registration.id.toString().padStart(6, "0")}</span>
-                        </div>
+                    <div class="total-row">
+                        <span>Total:</span>
+                        <span>Rs ${formatPKR(total)}</span>
                     </div>
                 </div>
             </div>
             
+            <!-- Zero Rupee -->
+            <div class="zero-rupee">
+                (${total === 0 ? "Zero" : ""} Rupee Only)
+            </div>
+            
+            <!-- Disclaimer -->
+            <div class="disclaimer">
+                Dues once paid are not-refundable
+            </div>
+            
+            <!-- Footer -->
             <div class="footer">
-                <p>Generated on ${new Date().toLocaleDateString("en-PK", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}</p>
-                <p>This is an official registration document.</p>
+                Delta College Reserves the Rights as per the internal policy, terms and conditions (Electronic Receipt)
             </div>
         </div>
     </body>
