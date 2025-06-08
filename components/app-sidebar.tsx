@@ -32,6 +32,7 @@ import {
   SidebarMenuItem,
   SidebarMenuBadge,
 } from "@/components/ui/sidebar"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -139,8 +140,8 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="border-r-0 bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-white h-fit">
-      <SidebarHeader className="border-b border-white/10 bg-slate-900/50">
+    <Sidebar className="border-r-0 bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-white h-screen flex flex-col">
+      <SidebarHeader className="border-b border-white/10 bg-slate-900/50 flex-shrink-0">
         <div className="p-6">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
@@ -171,76 +172,78 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-4 py-2 h-fit">
-        <SidebarGroup className="h-fit">
-          <SidebarGroupLabel className="text-purple-200 font-bold mb-4 text-sm uppercase tracking-wider px-2 py-2">
-            Navigation
-          </SidebarGroupLabel>
-          <SidebarGroupContent className="h-fit">
-            <SidebarMenu className="space-y-2 h-fit">
-              {filteredItems.map((item) => {
-                const active = isActive(item.url)
-                const hovered = hoveredItem === item.title
+      <SidebarContent className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full px-4 py-2">
+          <SidebarGroup className="h-fit">
+            <SidebarGroupLabel className="text-purple-200 font-bold mb-4 text-sm uppercase tracking-wider px-2 py-2">
+              Navigation
+            </SidebarGroupLabel>
+            <SidebarGroupContent className="h-fit">
+              <SidebarMenu className="space-y-2 h-fit">
+                {filteredItems.map((item) => {
+                  const active = isActive(item.url)
+                  const hovered = hoveredItem === item.title
 
-                return (
-                  <SidebarMenuItem
-                    key={item.title}
-                    className="h-fit"
-                    onMouseEnter={() => setHoveredItem(item.title)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
-                    <SidebarMenuButton asChild>
-                      <Link
-                        href={item.url}
-                        className={`flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 ease-out border text-white relative overflow-hidden h-fit ${
-                          active
-                            ? `bg-gradient-to-r ${item.gradient} border-white/30 shadow-md`
-                            : `bg-transparent border-transparent ${hovered ? "border-white/20 shadow-md" : ""}`
-                        }`}
-                      >
-                        {/* Expanding background - controlled by JS state */}
-                        {!active && (
-                          <div
-                            className={`absolute inset-0 bg-gradient-to-r ${item.gradient} transition-all duration-300 ease-out rounded-xl transform origin-left ${
-                              hovered ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
-                            }`}
-                          />
-                        )}
-
-                        {/* Icon container */}
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md relative z-10 ${
+                  return (
+                    <SidebarMenuItem
+                      key={item.title}
+                      className="h-fit"
+                      onMouseEnter={() => setHoveredItem(item.title)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      <SidebarMenuButton asChild>
+                        <Link
+                          href={item.url}
+                          className={`flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 ease-out border text-white relative overflow-hidden h-fit ${
                             active
-                              ? `bg-white/10 ring-1 ring-white/50` // Active icon: no scale, subtle ring
-                              : `bg-gradient-to-r ${item.gradient} ${hovered ? "scale-105" : ""}` // Non-active icon: scales on hover
+                              ? `bg-gradient-to-r ${item.gradient} border-white/30 shadow-md`
+                              : `bg-transparent border-transparent ${hovered ? "border-white/20 shadow-md" : ""}`
                           }`}
                         >
-                          <item.icon className="h-4 w-4 text-white" />
-                        </div>
+                          {/* Expanding background - controlled by JS state */}
+                          {!active && (
+                            <div
+                              className={`absolute inset-0 bg-gradient-to-r ${item.gradient} transition-all duration-300 ease-out rounded-xl transform origin-left ${
+                                hovered ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
+                              }`}
+                            />
+                          )}
 
-                        {/* Text */}
-                        <span className="text-white font-semibold text-sm tracking-wide relative z-10">
-                          {item.title}
-                        </span>
+                          {/* Icon container */}
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md relative z-10 ${
+                              active
+                                ? `bg-white/10 ring-1 ring-white/50` // Active icon: no scale, subtle ring
+                                : `bg-gradient-to-r ${item.gradient} ${hovered ? "scale-105" : ""}` // Non-active icon: scales on hover
+                            }`}
+                          >
+                            <item.icon className="h-4 w-4 text-white" />
+                          </div>
 
-                        {/* Active indicator */}
-                        {active && <div className="absolute right-3 w-2 h-2 bg-white rounded-full" />}
-                      </Link>
-                    </SidebarMenuButton>
-                    {item.showBadge && unreadCount > 0 && (
-                      <SidebarMenuBadge className="bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg animate-pulse font-bold">
-                        {unreadCount}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                          {/* Text */}
+                          <span className="text-white font-semibold text-sm tracking-wide relative z-10">
+                            {item.title}
+                          </span>
+
+                          {/* Active indicator */}
+                          {active && <div className="absolute right-3 w-2 h-2 bg-white rounded-full" />}
+                        </Link>
+                      </SidebarMenuButton>
+                      {item.showBadge && unreadCount > 0 && (
+                        <SidebarMenuBadge className="bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg animate-pulse font-bold">
+                          {unreadCount}
+                        </SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </ScrollArea>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-white/10 bg-slate-900/50">
+      <SidebarFooter className="p-4 border-t border-white/10 bg-slate-900/50 flex-shrink-0">
         <Button
           variant="outline"
           className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300 hover:text-white font-semibold shadow-lg mb-3"
