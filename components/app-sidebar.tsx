@@ -139,7 +139,7 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="border-r-0 bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-white">
+    <Sidebar className="border-r-0 bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-white h-fit">
       <SidebarHeader className="border-b border-white/10 bg-slate-900/50">
         <div className="p-6">
           <div className="flex items-center space-x-3 mb-4">
