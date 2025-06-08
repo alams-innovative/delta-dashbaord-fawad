@@ -171,13 +171,13 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-4 py-2">
-        <SidebarGroup>
+      <SidebarContent className="px-4 py-2 h-fit">
+        <SidebarGroup className="h-fit">
           <SidebarGroupLabel className="text-purple-200 font-bold mb-4 text-sm uppercase tracking-wider px-2 py-2">
             Navigation
           </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-2">
+          <SidebarGroupContent className="h-fit">
+            <SidebarMenu className="space-y-2 h-fit">
               {filteredItems.map((item) => {
                 const active = isActive(item.url)
                 const hovered = hoveredItem === item.title
@@ -185,6 +185,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem
                     key={item.title}
+                    className="h-fit"
                     onMouseEnter={() => setHoveredItem(item.title)}
                     onMouseLeave={() => setHoveredItem(null)}
                   >
