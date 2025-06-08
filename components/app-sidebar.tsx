@@ -1,6 +1,7 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Users,
   MessageSquare,
@@ -120,15 +121,22 @@ const menuItems = [
 export function AppSidebar() {
   const { user, logout, unreadCount } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
 
   const handleLogout = async () => {
-    console.log("🚪 Logging out...")
     await logout()
-    console.log("✅ Logout complete, redirecting to login")
     router.replace("/login")
   }
 
   const filteredItems = menuItems.filter((item) => user && item.roles.includes(user.role))
+
+  const isActive = (url: string) => {
+    if (url === "/") {
+      return pathname === "/"
+    }
+    return pathname.startsWith(url)
+  }
 
   return (
     <Sidebar className="border-r-0 bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-white">
@@ -143,12 +151,11 @@ export function AppSidebar() {
               <p className="text-xs text-purple-200 font-medium">Education Management System</p>
             </div>
           </div>
-
           <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-lg">
             <Avatar className="h-10 w-10 ring-2 ring-white/20">
               <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold text-sm">
                 {user?.name
-                  .split(" ")
+                  ?.split(" ")
                   .map((n) => n[0])
                   .join("")}
               </AvatarFallback>
@@ -171,30 +178,62 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-2">
-              {filteredItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="group relative">
-                    <Link
-                      href={item.url}
-                      className="flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 hover:bg-white/10 hover:backdrop-blur-sm border border-transparent hover:border-white/20 text-white hover:text-white group-hover:shadow-lg"
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-lg bg-gradient-to-r ${item.gradient} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg`}
+              {filteredItems.map((item) => {
+                const active = isActive(item.url)
+                const hovered = hoveredItem === item.title
+
+                return (
+                  <SidebarMenuItem
+                    key={item.title}
+                    onMouseEnter={() => setHoveredItem(item.title)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                  >
+                    <SidebarMenuButton asChild>
+                      <Link
+                        href={item.url}
+                        className={`flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 ease-out border text-white relative overflow-hidden ${
+                          active
+                            ? `bg-gradient-to-r ${item.gradient} border-white/30 shadow-md`
+                            : `bg-transparent border-transparent ${hovered ? "border-white/20 shadow-md" : ""}`
+                        }`}
                       >
-                        <item.icon className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="text-white font-semibold group-hover:text-white text-sm tracking-wide">
-                        {item.title}
-                      </span>
-                    </Link>
-                  </SidebarMenuButton>
-                  {item.showBadge && unreadCount > 0 && (
-                    <SidebarMenuBadge className="bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg animate-pulse font-bold">
-                      {unreadCount}
-                    </SidebarMenuBadge>
-                  )}
-                </SidebarMenuItem>
-              ))}
+                        {/* Expanding background - controlled by JS state */}
+                        {!active && (
+                          <div
+                            className={`absolute inset-0 bg-gradient-to-r ${item.gradient} transition-all duration-300 ease-out rounded-xl transform origin-left ${
+                              hovered ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
+                            }`}
+                          />
+                        )}
+
+                        {/* Icon container */}
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md relative z-10 ${
+                            active
+                              ? `bg-white/10 ring-1 ring-white/50` // Active icon: no scale, subtle ring
+                              : `bg-gradient-to-r ${item.gradient} ${hovered ? "scale-105" : ""}` // Non-active icon: scales on hover
+                          }`}
+                        >
+                          <item.icon className="h-4 w-4 text-white" />
+                        </div>
+
+                        {/* Text */}
+                        <span className="text-white font-semibold text-sm tracking-wide relative z-10">
+                          {item.title}
+                        </span>
+
+                        {/* Active indicator */}
+                        {active && <div className="absolute right-3 w-2 h-2 bg-white rounded-full" />}
+                      </Link>
+                    </SidebarMenuButton>
+                    {item.showBadge && unreadCount > 0 && (
+                      <SidebarMenuBadge className="bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg animate-pulse font-bold">
+                        {unreadCount}
+                      </SidebarMenuBadge>
+                    )}
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
