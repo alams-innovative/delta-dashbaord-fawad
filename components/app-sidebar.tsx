@@ -192,7 +192,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <Link
                         href={item.url}
-                        className={`flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 ease-out border text-white relative overflow-hidden ${
+                        className={`flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 ease-out border text-white relative overflow-hidden h-fit ${
                           active
                             ? `bg-gradient-to-r ${item.gradient} border-white/30 shadow-md`
                             : `bg-transparent border-transparent ${hovered ? "border-white/20 shadow-md" : ""}`
