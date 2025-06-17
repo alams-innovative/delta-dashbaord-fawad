@@ -1,4 +1,5 @@
-"use client"
+```typescriptreact file="app/registrations/page.tsx"
+[v0-no-op-code-block-prefix]"use client"
 
 import { DialogTrigger } from "@/components/ui/dialog"
 import { WhatsAppButtons } from "@/components/whatsapp-buttons"

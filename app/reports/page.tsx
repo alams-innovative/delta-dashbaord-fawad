@@ -53,8 +53,8 @@ export default function ReportsPage() {
       // Fetch inquiry status statistics
       const statsResponse = await fetch("/api/reports/inquiry-status")
       if (statsResponse.ok) {
-        const stats = await statsResponse.json()
-        setStatusStats(stats)
+        const data = await statsResponse.json() // Expecting { totalInquiries: number, statusDistribution: InquiryStatusStats[] }
+        setStatusStats(data.statusDistribution) // Set only the statusDistribution part
       }
 
       // Fetch inquiries with their current status
@@ -140,8 +140,8 @@ export default function ReportsPage() {
   }
 
   const totalInquiries = statusStats.reduce((sum, stat) => sum + stat.count, 0)
-  const conversionRate =
-    totalInquiries > 0 ? ((statusStats.find((s) => s.status === "interested")?.count || 0) / totalInquiries) * 100 : 0
+  const interestedCount = statusStats.find((s) => s.status === "interested")?.count || 0
+  const conversionRate = totalInquiries > 0 ? (interestedCount / totalInquiries) * 100 : 0
 
   if (loading) {
     return (
@@ -196,9 +196,7 @@ export default function ReportsPage() {
                 <div className="text-sm text-blue-100">Contacted</div>
               </div>
               <div className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="text-2xl md:text-3xl font-bold">
-                  {statusStats.find((s) => s.status === "interested")?.count || 0}
-                </div>
+                <div className="text-2xl md:text-3xl font-bold">{interestedCount}</div>
                 <div className="text-sm text-blue-100">Interested</div>
               </div>
               <div className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
@@ -262,28 +260,24 @@ export default function ReportsPage() {
                     value: totalInquiries,
                     icon: Users,
                     gradient: "from-blue-500 to-blue-600",
-                    change: "+12%",
                   },
                   {
                     title: "Contacted",
                     value: statusStats.find((s) => s.status === "contacted")?.count || 0,
                     icon: MessageCircle,
                     gradient: "from-green-500 to-green-600",
-                    change: "+8%",
                   },
                   {
                     title: "Called",
                     value: statusStats.find((s) => s.status === "called")?.count || 0,
                     icon: Phone,
                     gradient: "from-purple-500 to-purple-600",
-                    change: "+15%",
                   },
                   {
                     title: "Interested",
-                    value: statusStats.find((s) => s.status === "interested")?.count || 0,
+                    value: interestedCount,
                     icon: CheckCircle,
                     gradient: "from-emerald-500 to-emerald-600",
-                    change: "+23%",
                   },
                 ].map((stat, index) => (
                   <Card
@@ -302,10 +296,11 @@ export default function ReportsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
+                      {/* Removed hardcoded change percentages */}
                       <div className="flex items-center text-xs">
                         <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-                        <span className="text-green-600 font-medium">{stat.change}</span>
-                        <span className="text-gray-500 ml-1">from last month</span>
+                        <span className="text-green-600 font-medium">Live Data</span>
+                        <span className="text-gray-500 ml-1">from database</span>
                       </div>
                     </CardContent>
                   </Card>

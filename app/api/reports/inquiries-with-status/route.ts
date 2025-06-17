@@ -29,6 +29,7 @@ export async function GET() {
       ) s ON i.id = s.inquiry_id
       ORDER BY i.created_at DESC
     `
+    console.log("📊 Inquiries with status result:", result) // Added logging
 
     console.log("✅ Inquiries with status retrieved successfully")
     return NextResponse.json(result)

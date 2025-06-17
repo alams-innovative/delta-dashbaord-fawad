@@ -11,6 +11,7 @@ export async function GET() {
     const totalResult = await sql`
       SELECT COUNT(*) as total FROM inquiries
     `
+    console.log("📊 Total inquiries result:", totalResult)
     const total = Number(totalResult[0].total)
 
     // Get status distribution
@@ -29,16 +30,23 @@ export async function GET() {
       GROUP BY s.status
       ORDER BY count DESC
     `
+    console.log("📊 Status distribution result:", statusResult)
 
     // Calculate percentages
-    const stats = statusResult.map((row) => ({
+    const statusDistribution = statusResult.map((row) => ({
       status: row.status,
       count: Number(row.count),
       percentage: total > 0 ? (Number(row.count) / total) * 100 : 0,
     }))
 
-    console.log("✅ Inquiry status statistics retrieved successfully")
-    return NextResponse.json(stats)
+    // Return data in the expected object format
+    const responseData = {
+      totalInquiries: total,
+      statusDistribution: statusDistribution,
+    }
+
+    console.log("✅ Inquiry status statistics retrieved successfully:", responseData)
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error("❌ Error getting inquiry status statistics:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -283,7 +283,7 @@ export default function InquiryPage() {
                   htmlFor="checkboxField"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Attend Session
+                  Interested to Visit Delta on 9th June for 2nd Free to attend MDCAT 2025 Session
                 </Label>
               </div>
 
