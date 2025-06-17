@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,12 +12,13 @@ import {
   MessageCircle,
   CheckCircle,
   XCircle,
-  Clock,
   Download,
   RefreshCw,
   TrendingUp,
   Eye,
   Target,
+  Calendar,
+  Trophy,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -51,23 +52,37 @@ export default function ReportsPage() {
       setRefreshing(true)
 
       // Fetch inquiry status statistics
-      const statsResponse = await fetch("/api/reports/inquiry-status")
+      const statsResponse = await fetch("/api/reports/inquiry-status", { cache: "no-store" })
       if (statsResponse.ok) {
         const data = await statsResponse.json() // Expecting { totalInquiries: number, statusDistribution: InquiryStatusStats[] }
         setStatusStats(data.statusDistribution) // Set only the statusDistribution part
+      } else {
+        console.error("Failed to fetch status statistics:", statsResponse.status, statsResponse.statusText)
+        toast({
+          title: "Error",
+          description: `Failed to load status statistics: ${statsResponse.statusText}`,
+          variant: "destructive",
+        })
       }
 
       // Fetch inquiries with their current status
-      const inquiriesResponse = await fetch("/api/reports/inquiries-with-status")
+      const inquiriesResponse = await fetch("/api/reports/inquiries-with-status", { cache: "no-store" })
       if (inquiriesResponse.ok) {
         const inquiries = await inquiriesResponse.json()
         setInquiriesWithStatus(inquiries)
+      } else {
+        console.error("Failed to fetch inquiries with status:", inquiriesResponse.status, inquiriesResponse.statusText)
+        toast({
+          title: "Error",
+          description: `Failed to load detailed inquiries: ${inquiriesResponse.statusText}`,
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error fetching report data:", error)
       toast({
         title: "Error",
-        description: "Failed to load report data",
+        description: "Failed to load report data due to a network error.",
         variant: "destructive",
       })
     } finally {
@@ -82,20 +97,38 @@ export default function ReportsPage() {
     fetchReportData()
   }, [])
 
+  // Helper function to get count for a specific status or group of statuses
+  const getCountForStatuses = (statuses: string[]) => {
+    return statusStats.filter((stat) => statuses.includes(stat.status)).reduce((sum, stat) => sum + stat.count, 0)
+  }
+
+  const totalInquiries = useMemo(() => statusStats.reduce((sum, stat) => sum + stat.count, 0), [statusStats])
+  const notInterestedCount = useMemo(() => getCountForStatuses(["not_interested"]), [statusStats])
+  const calledCount = useMemo(() => getCountForStatuses(["inquiry_called"]), [statusStats])
+  const convertedCount = useMemo(() => getCountForStatuses(["converted_enrolled"]), [statusStats])
+  const conversionRate = totalInquiries > 0 ? (convertedCount / totalInquiries) * 100 : 0
+
   const getStatusIcon = (status: string | null | undefined) => {
     if (!status) return <Users className="h-5 w-5" />
 
     switch (status.toLowerCase()) {
-      case "contacted":
+      case "inquiry_valid":
+      case "student_seeking_info":
+      case "wants_to_speak":
         return <MessageCircle className="h-5 w-5" />
-      case "called":
+      case "inquiry_called":
         return <Phone className="h-5 w-5" />
-      case "interested":
+      case "interested_not_decided":
         return <CheckCircle className="h-5 w-5" />
       case "not_interested":
         return <XCircle className="h-5 w-5" />
-      case "follow_up":
-        return <Clock className="h-5 w-5" />
+      case "scheduled_free_session":
+      case "attended_free_session":
+        return <Calendar className="h-5 w-5" />
+      case "converted_enrolled":
+        return <Trophy className="h-5 w-5" />
+      case "unreachable":
+        return <Phone className="h-5 w-5" /> // Using phone for unreachable as well
       default:
         return <Users className="h-5 w-5" />
     }
@@ -105,16 +138,23 @@ export default function ReportsPage() {
     if (!status) return "from-gray-400 to-gray-600"
 
     switch (status.toLowerCase()) {
-      case "contacted":
+      case "inquiry_valid":
+      case "student_seeking_info":
+      case "wants_to_speak":
         return "from-blue-400 to-blue-600"
-      case "called":
+      case "inquiry_called":
         return "from-green-400 to-green-600"
-      case "interested":
+      case "interested_not_decided":
         return "from-emerald-400 to-emerald-600"
       case "not_interested":
         return "from-red-400 to-red-600"
-      case "follow_up":
+      case "scheduled_free_session":
+      case "attended_free_session":
         return "from-yellow-400 to-yellow-600"
+      case "converted_enrolled":
+        return "from-teal-500 to-green-500"
+      case "unreachable":
+        return "from-gray-500 to-gray-700"
       default:
         return "from-gray-400 to-gray-600"
     }
@@ -124,24 +164,27 @@ export default function ReportsPage() {
     if (!status) return "secondary"
 
     switch (status.toLowerCase()) {
-      case "contacted":
+      case "inquiry_valid":
+      case "student_seeking_info":
+      case "wants_to_speak":
         return "default"
-      case "called":
+      case "inquiry_called":
         return "secondary"
-      case "interested":
+      case "interested_not_decided":
         return "default"
       case "not_interested":
         return "destructive"
-      case "follow_up":
+      case "scheduled_free_session":
+      case "attended_free_session":
         return "outline"
+      case "converted_enrolled":
+        return "default" // Or a custom variant for success
+      case "unreachable":
+        return "secondary"
       default:
         return "secondary"
     }
   }
-
-  const totalInquiries = statusStats.reduce((sum, stat) => sum + stat.count, 0)
-  const interestedCount = statusStats.find((s) => s.status === "interested")?.count || 0
-  const conversionRate = totalInquiries > 0 ? (interestedCount / totalInquiries) * 100 : 0
 
   if (loading) {
     return (
@@ -190,18 +233,16 @@ export default function ReportsPage() {
                 <div className="text-sm text-blue-100">Total Inquiries</div>
               </div>
               <div className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="text-2xl md:text-3xl font-bold">
-                  {statusStats.find((s) => s.status === "contacted")?.count || 0}
-                </div>
-                <div className="text-sm text-blue-100">Contacted</div>
+                <div className="text-2xl md:text-3xl font-bold">{notInterestedCount}</div>
+                <div className="text-sm text-blue-100">Not Interested</div>
               </div>
               <div className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="text-2xl md:text-3xl font-bold">{interestedCount}</div>
-                <div className="text-sm text-blue-100">Interested</div>
+                <div className="text-2xl md:text-3xl font-bold">{calledCount}</div>
+                <div className="text-sm text-blue-100">Called</div>
               </div>
               <div className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="text-2xl md:text-3xl font-bold">{conversionRate.toFixed(1)}%</div>
-                <div className="text-sm text-blue-100">Conversion</div>
+                <div className="text-2xl md:text-3xl font-bold">{convertedCount}</div>
+                <div className="text-sm text-blue-100">Converted</div>
               </div>
             </div>
           </div>
@@ -234,7 +275,7 @@ export default function ReportsPage() {
           </div>
 
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur-sm">
+            <TabsList className="grid w-full grid-cols-2 bg-white shadow-md">
               <TabsTrigger
                 value="overview"
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
@@ -262,27 +303,27 @@ export default function ReportsPage() {
                     gradient: "from-blue-500 to-blue-600",
                   },
                   {
-                    title: "Contacted",
-                    value: statusStats.find((s) => s.status === "contacted")?.count || 0,
-                    icon: MessageCircle,
-                    gradient: "from-green-500 to-green-600",
+                    title: "Not Interested",
+                    value: notInterestedCount,
+                    icon: XCircle,
+                    gradient: "from-red-500 to-red-600",
                   },
                   {
                     title: "Called",
-                    value: statusStats.find((s) => s.status === "called")?.count || 0,
+                    value: calledCount,
                     icon: Phone,
                     gradient: "from-purple-500 to-purple-600",
                   },
                   {
-                    title: "Interested",
-                    value: interestedCount,
-                    icon: CheckCircle,
+                    title: "Converted",
+                    value: convertedCount,
+                    icon: Trophy,
                     gradient: "from-emerald-500 to-emerald-600",
                   },
                 ].map((stat, index) => (
                   <Card
                     key={stat.title}
-                    className={`relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 ${
+                    className={`relative overflow-hidden bg-white border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 ${
                       animateCards ? "animate-in slide-in-from-bottom-4" : "opacity-0"
                     }`}
                     style={{ animationDelay: `${index * 100}ms` }}
@@ -296,7 +337,6 @@ export default function ReportsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                      {/* Removed hardcoded change percentages */}
                       <div className="flex items-center text-xs">
                         <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
                         <span className="text-green-600 font-medium">Live Data</span>
@@ -308,7 +348,7 @@ export default function ReportsPage() {
               </div>
 
               {/* Enhanced Status Distribution */}
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+              <Card className="bg-white border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center text-2xl">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 mr-3">
@@ -324,7 +364,7 @@ export default function ReportsPage() {
                   {statusStats.map((stat, index) => (
                     <div
                       key={stat.status}
-                      className={`group hover:bg-gray-50/50 p-4 rounded-xl transition-all duration-300 ${
+                      className={`group hover:bg-gray-100 p-4 rounded-xl transition-all duration-300 ${
                         animateCards ? "animate-in slide-in-from-left-4" : "opacity-0"
                       }`}
                       style={{ animationDelay: `${(index + 4) * 150}ms` }}
@@ -335,11 +375,10 @@ export default function ReportsPage() {
                             className={`p-2 rounded-lg bg-gradient-to-br ${getStatusGradient(stat.status)} shadow-lg`}
                           >
                             {getStatusIcon(stat.status)}
-                            <div className="absolute inset-0 bg-white/20 rounded-lg"></div>
                           </div>
                           <div>
                             <span className="text-lg font-semibold capitalize text-gray-800">
-                              {stat.status.replace("_", " ")}
+                              {stat.status.replace(/_/g, " ")}
                             </span>
                             <div className="text-sm text-gray-500">{stat.count} inquiries</div>
                           </div>
@@ -377,7 +416,7 @@ export default function ReportsPage() {
             </TabsContent>
 
             <TabsContent value="detailed" className="space-y-6">
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+              <Card className="bg-white border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center text-2xl">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 mr-3">
@@ -404,7 +443,7 @@ export default function ReportsPage() {
                         {inquiriesWithStatus.map((inquiry, index) => (
                           <div
                             key={inquiry.id}
-                            className={`group relative p-6 border border-gray-200/50 rounded-xl hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-white to-gray-50/50 hover:from-blue-50/30 hover:to-indigo-50/30 ${
+                            className={`group relative p-6 border border-gray-200/50 rounded-xl hover:shadow-lg transition-all duration-300 bg-white hover:bg-gray-50 ${
                               animateCards ? "animate-in slide-in-from-right-4" : "opacity-0"
                             }`}
                             style={{ animationDelay: `${index * 100}ms` }}
@@ -434,13 +473,13 @@ export default function ReportsPage() {
                                 <div className="text-right">
                                   <Badge
                                     variant={getStatusBadgeVariant(inquiry.current_status)}
-                                    className="text-sm px-3 py-1 shadow-sm"
+                                    className="text-sm px-3 py-1 shadow-sm capitalize"
                                   >
                                     <div className="flex items-center space-x-1">
                                       {getStatusIcon(inquiry.current_status)}
                                       <span>
                                         {inquiry.current_status
-                                          ? inquiry.current_status.replace("_", " ")
+                                          ? inquiry.current_status.replace(/_/g, " ")
                                           : "No Status"}
                                       </span>
                                     </div>
