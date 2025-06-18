@@ -29,15 +29,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })
     }
 
-    // Calculate amounts - Total should equal amount paid for receipt
-    const feePaid = Number.parseFloat(registration.fee_paid || 0) || 0
-    const feePending = Number.parseFloat(registration.fee_pending || 0) || 0
-    const concession = Number.parseFloat(registration.concession || 0) || 0
+    const paidAmount = Number.parseFloat(registration.fee_paid || "0") || 0
+    const initialPendingAmount = Number.parseFloat(registration.fee_pending || "0") || 0
+    const discountAmount = Number.parseFloat(registration.concession || "0") || 0
 
     // For receipt, we show the amount that was actually paid
-    const receiptAmount = feePaid
-    const subtotal = feePaid + feePending
-    const totalAfterDiscount = subtotal - concession
+    const receiptAmount = paidAmount
+    const totalFeeBeforeDiscount = paidAmount + initialPendingAmount
+    const totalAfterDiscount = totalFeeBeforeDiscount - discountAmount
+
+    // Calculate the actual remaining due based on total after discount and amount paid
+    const remainingDue = Math.max(0, totalAfterDiscount - paidAmount)
 
     // Format dates
     const now = new Date()
@@ -157,13 +159,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             align-items: center;
         }
         
-        .logo {
+        .logo-img {
             width: 80px; /* Adjust as needed */
             height: 80px; /* Adjust as needed */
-            background: url('/images/delta-college-logo.jpg') no-repeat center center; /* Updated logo path */
-            background-size: contain;
+            object-fit: contain; /* Ensures the image fits within the bounds */
             margin-right: 15px;
-            /* Removed border and border-radius to fit the shield logo */
         }
         
         .company-info {
@@ -395,7 +395,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         <!-- Header -->
         <div class="header">
             <div class="logo-section">
-                <div class="logo"></div>
+                <img src="/images/delta-college-logo.jpg" alt="Delta College Logo" class="logo-img" />
                 <div class="company-info">
                     <div class="company-name">Delta Education Systems</div>
                     <div class="company-address">Khadam Ali Road, SIAI KOT, PAKISTAN</div>
@@ -474,7 +474,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Pending Payment Due on:</span>
-                    <span class="detail-value">${feePending > 0 ? formattedDueDate : "N/A"}</span>
+                    <span class="detail-value">${remainingDue > 0 ? formattedDueDate : "N/A"}</span>
                 </div>
             </div>
             <div class="amount-section">
@@ -488,21 +488,21 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             <div class="payment-left">
                 <div class="summary-row">
                     <span><strong>Amount Paid:</strong></span>
-                    <span><strong>Rs ${formatPKR(feePaid)}</strong></span>
+                    <span><strong>Rs ${formatPKR(paidAmount)}</strong></span>
                 </div>
                 <div class="summary-row">
                     <span><strong>Remaining Due:</strong></span>
-                    <span><strong>Rs ${formatPKR(feePending)}</strong></span>
+                    <span><strong>Rs ${formatPKR(remainingDue)}</strong></span>
                 </div>
             </div>
             <div class="payment-right">
                 <div class="summary-row">
                     <span><strong>Total Fee:</strong></span>
-                    <span><strong>Rs ${formatPKR(subtotal)}</strong></span>
+                    <span><strong>Rs ${formatPKR(totalFeeBeforeDiscount)}</strong></span>
                 </div>
                 <div class="summary-row">
                     <span><strong>Discount:</strong></span>
-                    <span><strong>Rs ${formatPKR(concession)}</strong></span>
+                    <span><strong>Rs ${formatPKR(discountAmount)}</strong></span>
                 </div>
                 <div class="summary-row total-row">
                     <span><strong>Receipt Amount:</strong></span>

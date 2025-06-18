@@ -19,6 +19,9 @@ import {
   Target,
   Calendar,
   Trophy,
+  Activity,
+  Flame,
+  Snowflake,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -39,9 +42,48 @@ interface InquiryWithStatus {
   updated_by: string | null
 }
 
+interface TopUpdater {
+  updated_by: string
+  update_count: number
+}
+
+interface StatusUpdateCount {
+  status: string
+  update_count: number
+}
+
+interface WhatsappSentCount {
+  message_type: string
+  sent_count: number
+}
+
+interface BurnUnburnStats {
+  totalInquiries: number
+  totalBurns: number
+  totalUnburns: number
+  maxPossibleBurns: number
+  burnPercentage: number
+  unburnPercentage: number
+}
+
 export default function ReportsPage() {
   const [statusStats, setStatusStats] = useState<InquiryStatusStats[]>([])
   const [inquiriesWithStatus, setInquiriesWithStatus] = useState<InquiryWithStatus[]>([])
+  const [totalButtonBurns, setTotalButtonBurns] = useState(0)
+  const [topUsersByBurns, setTopUsersByBurns] = useState<TopUpdater[]>([])
+  const [statusUpdateCounts, setStatusUpdateCounts] = useState<StatusUpdateCount[]>([])
+  const [burnUnburnStats, setBurnUnburnStats] = useState<BurnUnburnStats>({
+    totalInquiries: 0,
+    totalBurns: 0,
+    totalUnburns: 0,
+    maxPossibleBurns: 0,
+    burnPercentage: 0,
+    unburnPercentage: 0,
+  })
+  const [whatsappSentCounts, setWhatsappSentCounts] = useState<{
+    inquirySentCounts: WhatsappSentCount[]
+    registrationSentCounts: WhatsappSentCount[]
+  }>({ inquirySentCounts: [], registrationSentCounts: [] })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [animateCards, setAnimateCards] = useState(false)
@@ -51,11 +93,11 @@ export default function ReportsPage() {
     try {
       setRefreshing(true)
 
-      // Fetch inquiry status statistics
+      // Fetch inquiry status statistics (current counts)
       const statsResponse = await fetch("/api/reports/inquiry-status", { cache: "no-store" })
       if (statsResponse.ok) {
-        const data = await statsResponse.json() // Expecting { totalInquiries: number, statusDistribution: InquiryStatusStats[] }
-        setStatusStats(data.statusDistribution) // Set only the statusDistribution part
+        const data = await statsResponse.json()
+        setStatusStats(data.statusDistribution)
       } else {
         console.error("Failed to fetch status statistics:", statsResponse.status, statsResponse.statusText)
         toast({
@@ -78,6 +120,41 @@ export default function ReportsPage() {
           variant: "destructive",
         })
       }
+
+      // Fetch inquiry button stats (total burns, top users, status-specific burns, and burn/unburn stats)
+      const buttonStatsResponse = await fetch("/api/reports/inquiry-button-stats", { cache: "no-store" })
+      if (buttonStatsResponse.ok) {
+        const data = await buttonStatsResponse.json()
+        setTotalButtonBurns(data.totalUpdates)
+        setTopUsersByBurns(data.topUpdaters)
+        setStatusUpdateCounts(data.statusUpdateCounts)
+        setBurnUnburnStats(data.burnUnburnStats) // Set burn/unburn stats
+      } else {
+        console.error("Failed to fetch button stats:", buttonStatsResponse.status, buttonStatsResponse.statusText)
+        toast({
+          title: "Error",
+          description: `Failed to load button usage stats: ${buttonStatsResponse.statusText}`,
+          variant: "destructive",
+        })
+      }
+
+      // Fetch WhatsApp sent counts
+      const whatsappSentResponse = await fetch("/api/reports/whatsapp-sent-counts", { cache: "no-store" })
+      if (whatsappSentResponse.ok) {
+        const data = await whatsappSentResponse.json()
+        setWhatsappSentCounts(data)
+      } else {
+        console.error(
+          "Failed to fetch WhatsApp sent counts:",
+          whatsappSentResponse.status,
+          whatsappSentResponse.statusText,
+        )
+        toast({
+          title: "Error",
+          description: `Failed to load WhatsApp sent counts: ${whatsappSentResponse.statusText}`,
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       console.error("Error fetching report data:", error)
       toast({
@@ -88,7 +165,6 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
       setRefreshing(false)
-      // Trigger animation after data loads
       setTimeout(() => setAnimateCards(true), 100)
     }
   }
@@ -97,7 +173,6 @@ export default function ReportsPage() {
     fetchReportData()
   }, [])
 
-  // Helper function to get count for a specific status or group of statuses
   const getCountForStatuses = (statuses: string[]) => {
     return statusStats.filter((stat) => statuses.includes(stat.status)).reduce((sum, stat) => sum + stat.count, 0)
   }
@@ -106,7 +181,31 @@ export default function ReportsPage() {
   const notInterestedCount = useMemo(() => getCountForStatuses(["not_interested"]), [statusStats])
   const calledCount = useMemo(() => getCountForStatuses(["inquiry_called"]), [statusStats])
   const convertedCount = useMemo(() => getCountForStatuses(["converted_enrolled"]), [statusStats])
-  const conversionRate = totalInquiries > 0 ? (convertedCount / totalInquiries) * 100 : 0
+
+  const combinedStatusData = useMemo(() => {
+    const combinedMap = new Map<string, { current_count: number; update_count: number }>()
+
+    statusStats.forEach((stat) => {
+      combinedMap.set(stat.status, { current_count: stat.count, update_count: 0 })
+    })
+
+    statusUpdateCounts.forEach((updateStat) => {
+      const existing = combinedMap.get(updateStat.status)
+      if (existing) {
+        existing.update_count = updateStat.update_count
+      } else {
+        combinedMap.set(updateStat.status, { current_count: 0, update_count: updateStat.update_count })
+      }
+    })
+
+    return Array.from(combinedMap.entries())
+      .map(([status, data]) => ({
+        status,
+        current_count: data.current_count,
+        update_count: data.update_count,
+      }))
+      .sort((a, b) => b.update_count - a.update_count)
+  }, [statusStats, statusUpdateCounts])
 
   const getStatusIcon = (status: string | null | undefined) => {
     if (!status) return <Users className="h-5 w-5" />
@@ -128,7 +227,7 @@ export default function ReportsPage() {
       case "converted_enrolled":
         return <Trophy className="h-5 w-5" />
       case "unreachable":
-        return <Phone className="h-5 w-5" /> // Using phone for unreachable as well
+        return <Phone className="h-5 w-5" />
       default:
         return <Users className="h-5 w-5" />
     }
@@ -178,7 +277,7 @@ export default function ReportsPage() {
       case "attended_free_session":
         return "outline"
       case "converted_enrolled":
-        return "default" // Or a custom variant for success
+        return "default"
       case "unreachable":
         return "secondary"
       default:
@@ -275,7 +374,7 @@ export default function ReportsPage() {
           </div>
 
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 bg-white shadow-md">
+            <TabsList className="grid w-full grid-cols-3 bg-white shadow-md">
               <TabsTrigger
                 value="overview"
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
@@ -289,6 +388,13 @@ export default function ReportsPage() {
               >
                 <Target className="h-4 w-4 mr-2" />
                 Detailed View
+              </TabsTrigger>
+              <TabsTrigger
+                value="button-usage"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Button Usage
               </TabsTrigger>
             </TabsList>
 
@@ -454,49 +560,334 @@ export default function ReportsPage() {
                                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
                                     {inquiry.name.charAt(0).toUpperCase()}
                                   </div>
-                                  <div>
-                                    <p className="text-lg font-semibold text-gray-900">{inquiry.name}</p>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                  <div className="flex-1">
+                                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                      {inquiry.name}
+                                    </h3>
+                                    <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
                                       <span className="flex items-center">
                                         <Phone className="h-4 w-4 mr-1" />
                                         {inquiry.phone}
                                       </span>
-                                      <span className="flex items-center">
-                                        <MessageCircle className="h-4 w-4 mr-1" />
-                                        {inquiry.email}
-                                      </span>
+                                      {inquiry.email && (
+                                        <span className="flex items-center">
+                                          <MessageCircle className="h-4 w-4 mr-1" />
+                                          {inquiry.email}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
                               </div>
+
                               <div className="flex items-center space-x-4">
                                 <div className="text-right">
+                                  <div className="text-sm text-gray-500 mb-1">Current Status</div>
                                   <Badge
                                     variant={getStatusBadgeVariant(inquiry.current_status)}
-                                    className="text-sm px-3 py-1 shadow-sm capitalize"
+                                    className="text-xs font-medium px-3 py-1"
                                   >
-                                    <div className="flex items-center space-x-1">
-                                      {getStatusIcon(inquiry.current_status)}
-                                      <span>
-                                        {inquiry.current_status
-                                          ? inquiry.current_status.replace(/_/g, " ")
-                                          : "No Status"}
-                                      </span>
-                                    </div>
+                                    {inquiry.current_status
+                                      ? inquiry.current_status.replace(/_/g, " ").toUpperCase()
+                                      : "NO STATUS"}
                                   </Badge>
-                                  {inquiry.last_updated && (
-                                    <p className="text-xs text-gray-500 mt-2">
-                                      Updated: {new Date(inquiry.last_updated).toLocaleDateString()}
-                                    </p>
+                                </div>
+
+                                <div className="text-right">
+                                  <div className="text-sm text-gray-500 mb-1">Last Updated</div>
+                                  <div className="text-sm font-medium text-gray-700">
+                                    {inquiry.last_updated
+                                      ? new Date(inquiry.last_updated).toLocaleDateString()
+                                      : "Never"}
+                                  </div>
+                                  {inquiry.updated_by && (
+                                    <div className="text-xs text-gray-500">by {inquiry.updated_by}</div>
                                   )}
                                 </div>
-                                <div className="w-1 h-12 bg-gradient-to-b from-blue-400 to-purple-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                                <div className="text-right">
+                                  <div className="text-sm text-gray-500 mb-1">Created</div>
+                                  <div className="text-sm font-medium text-gray-700">
+                                    {new Date(inquiry.created_at).toLocaleDateString()}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="button-usage" className="space-y-6">
+              {/* Burn/Unburn Statistics Card */}
+              <Card className="bg-white border-0 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-2xl">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 mr-3">
+                      <Flame className="h-6 w-6 text-white" />
+                    </div>
+                    Burn/Unburn Statistics
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Track status update usage with burn/unburn analysis (Max: Total Inquiries × 3)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                    <div className="text-center p-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border border-orange-200">
+                      <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Flame className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="text-3xl font-bold text-orange-600 mb-2">{burnUnburnStats.totalBurns}</div>
+                      <div className="text-sm font-medium text-orange-700">Total Burns</div>
+                      <div className="text-xs text-orange-600 mt-1">
+                        {burnUnburnStats.burnPercentage.toFixed(1)}% used
+                      </div>
+                    </div>
+
+                    <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Snowflake className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="text-3xl font-bold text-blue-600 mb-2">{burnUnburnStats.totalUnburns}</div>
+                      <div className="text-sm font-medium text-blue-700">Total Unburns</div>
+                      <div className="text-xs text-blue-600 mt-1">
+                        {burnUnburnStats.unburnPercentage.toFixed(1)}% remaining
+                      </div>
+                    </div>
+
+                    <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
+                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Target className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="text-3xl font-bold text-purple-600 mb-2">{burnUnburnStats.maxPossibleBurns}</div>
+                      <div className="text-sm font-medium text-purple-700">Max Possible</div>
+                      <div className="text-xs text-purple-600 mt-1">Inquiries × 3</div>
+                    </div>
+
+                    <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                      <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="text-3xl font-bold text-green-600 mb-2">{burnUnburnStats.totalInquiries}</div>
+                      <div className="text-sm font-medium text-green-700">Total Inquiries</div>
+                      <div className="text-xs text-green-600 mt-1">Base count</div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar for Burn/Unburn Ratio */}
+                  <div className="mb-8">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">Burn/Unburn Ratio</span>
+                      <span className="text-sm text-gray-500">
+                        {burnUnburnStats.totalBurns} / {burnUnburnStats.maxPossibleBurns}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                      <div className="h-full flex">
+                        <div
+                          className="bg-gradient-to-r from-orange-500 to-red-600 transition-all duration-1000 ease-out"
+                          style={{
+                            width: `${burnUnburnStats.burnPercentage}%`,
+                          }}
+                        ></div>
+                        <div
+                          className="bg-gradient-to-r from-blue-400 to-cyan-500 transition-all duration-1000 ease-out"
+                          style={{
+                            width: `${burnUnburnStats.unburnPercentage}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>Burns ({burnUnburnStats.burnPercentage.toFixed(1)}%)</span>
+                      <span>Unburns ({burnUnburnStats.unburnPercentage.toFixed(1)}%)</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Button Usage Statistics */}
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Top Users by Burns */}
+                <Card className="bg-white border-0 shadow-xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-xl">
+                      <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 mr-3">
+                        <Trophy className="h-5 w-5 text-white" />
+                      </div>
+                      Top Users by Burns
+                    </CardTitle>
+                    <CardDescription>Users with the most status updates</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {topUsersByBurns.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">No user activity yet</p>
+                        </div>
+                      ) : (
+                        topUsersByBurns.map((user, index) => (
+                          <div
+                            key={user.updated_by}
+                            className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:from-green-50 hover:to-emerald-50 transition-all duration-300"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                                  index === 0
+                                    ? "bg-gradient-to-br from-yellow-400 to-yellow-600"
+                                    : index === 1
+                                      ? "bg-gradient-to-br from-gray-400 to-gray-600"
+                                      : index === 2
+                                        ? "bg-gradient-to-br from-orange-400 to-orange-600"
+                                        : "bg-gradient-to-br from-blue-400 to-blue-600"
+                                }`}
+                              >
+                                {index + 1}
+                              </div>
+                              <span className="font-medium text-gray-800">{user.updated_by}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                {user.update_count} burns
+                              </Badge>
+                              <Flame className="h-4 w-4 text-orange-500" />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Status Update Distribution */}
+                <Card className="bg-white border-0 shadow-xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-xl">
+                      <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 mr-3">
+                        <Activity className="h-5 w-5 text-white" />
+                      </div>
+                      Status Update Distribution
+                    </CardTitle>
+                    <CardDescription>Breakdown of status changes by type</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {combinedStatusData.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Activity className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">No status updates yet</p>
+                        </div>
+                      ) : (
+                        combinedStatusData.map((item, index) => (
+                          <div
+                            key={item.status}
+                            className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:from-purple-50 hover:to-indigo-50 transition-all duration-300"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2 rounded-lg bg-gradient-to-br ${getStatusGradient(item.status)}`}>
+                                {getStatusIcon(item.status)}
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-800 capitalize">
+                                  {item.status.replace(/_/g, " ")}
+                                </span>
+                                <div className="text-sm text-gray-500">
+                                  {item.current_count} current • {item.update_count} total updates
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                {item.update_count} burns
+                              </Badge>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* WhatsApp Message Statistics */}
+              <Card className="bg-white border-0 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-xl">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-green-600 mr-3">
+                      <MessageCircle className="h-5 w-5 text-white" />
+                    </div>
+                    WhatsApp Message Statistics
+                  </CardTitle>
+                  <CardDescription>Track WhatsApp messages sent to inquiries and registrations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {/* Inquiry WhatsApp Messages */}
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+                        <Users className="h-4 w-4 mr-2" />
+                        Inquiry Messages
+                      </h4>
+                      <div className="space-y-3">
+                        {whatsappSentCounts.inquirySentCounts.length === 0 ? (
+                          <div className="text-center py-6 bg-gray-50 rounded-lg">
+                            <MessageCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No inquiry messages sent yet</p>
+                          </div>
+                        ) : (
+                          whatsappSentCounts.inquirySentCounts.map((item) => (
+                            <div
+                              key={item.message_type}
+                              className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
+                            >
+                              <span className="font-medium text-green-800 capitalize">
+                                {item.message_type.replace(/_/g, " ")}
+                              </span>
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                {item.sent_count} sent
+                              </Badge>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Registration WhatsApp Messages */}
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Registration Messages
+                      </h4>
+                      <div className="space-y-3">
+                        {whatsappSentCounts.registrationSentCounts.length === 0 ? (
+                          <div className="text-center py-6 bg-gray-50 rounded-lg">
+                            <MessageCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No registration messages sent yet</p>
+                          </div>
+                        ) : (
+                          whatsappSentCounts.registrationSentCounts.map((item) => (
+                            <div
+                              key={item.message_type}
+                              className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
+                            >
+                              <span className="font-medium text-blue-800 capitalize">
+                                {item.message_type.replace(/_/g, " ")}
+                              </span>
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                {item.sent_count} sent
+                              </Badge>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

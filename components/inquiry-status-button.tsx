@@ -34,6 +34,29 @@ const statusOptions = [
   { value: "unreachable", label: "Unreachable" },
 ]
 
+const notInterestedReasonOptions = [
+  "Declined Clearly",
+  "Already Joined",
+  "Course Mismatch",
+  "No Reason",
+  "Re-check Later",
+  "Already Enrolled in STEP/KIPS or others",
+  "Prefers Local Institute",
+  "Fee Higher than Competitors",
+  "No Installment Option",
+  "Requested Discount Unavailable",
+  "Campus Too Far",
+  "Timing Not Flexible",
+  "Course Not Needed Now",
+  "Prefers Physical Classes",
+  "Preparing with Tutor at Home",
+  "Confused Between Option",
+  "Friends Joining Elsewhere",
+  "Trusts Other Brand More",
+  "Waiting for Results",
+  "Joining Later Session",
+]
+
 export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }: InquiryStatusButtonProps) {
   const [open, setOpen] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState("")
@@ -45,6 +68,9 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
   const [fetchError, setFetchError] = useState<string | null>(null)
   const { user } = useAuth()
   const { toast } = useToast()
+  const [notInterestedReasons, setNotInterestedReasons] = useState<string[]>([])
+  const [showNotInterestedReasons, setShowNotInterestedReasons] = useState(false)
+  const [showNotInterestedScreen, setShowNotInterestedScreen] = useState(false)
 
   const fetchStatusHistory = async () => {
     try {
@@ -105,6 +131,17 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
     fetchStatusHistory()
   }, [inquiryId])
 
+  const handleReasonToggle = (reason: string) => {
+    setNotInterestedReasons((prev) => (prev.includes(reason) ? prev.filter((r) => r !== reason) : [...prev, reason]))
+  }
+
+  useEffect(() => {
+    if (selectedStatus === "not_interested") {
+      const reasonText = `Not Interested\nReason:\n${notInterestedReasons.map((r) => `• ${r}`).join("\n")}`
+      setComments(reasonText)
+    }
+  }, [notInterestedReasons, selectedStatus])
+
   const handleSubmit = async () => {
     if (!selectedStatus || !user) {
       toast({
@@ -149,6 +186,8 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
         })
         setSelectedStatus("")
         setComments("")
+        setNotInterestedReasons([])
+        setShowNotInterestedScreen(false)
 
         // Wait a moment before refreshing to ensure database is updated
         setTimeout(async () => {
@@ -245,203 +284,341 @@ export function InquiryStatusButton({ inquiryId, currentStatus, onStatusUpdate }
           <DialogTitle className="text-xl font-bold text-center">Update Inquiry Status</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col h-full">
-          {/* Top Section: Status and Comments */}
-          <div className="flex gap-4 mb-4 flex-shrink-0">
-            {/* Status Section - Left Side */}
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Status</h3>
-              <div className="space-y-2">
-                {/* Row 1 */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedStatus("inquiry_valid")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all text-xs ${
-                      selectedStatus === "inquiry_valid" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    Inquiry is Valid
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus("inquiry_called")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all text-xs ${
-                      selectedStatus === "inquiry_called" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    Inquiry has been Called
-                  </button>
-                </div>
-
-                {/* Row 2 */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedStatus("student_seeking_info")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all text-xs ${
-                      selectedStatus === "student_seeking_info" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    Student Seeking Information
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus("interested_not_decided")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all text-xs ${
-                      selectedStatus === "interested_not_decided" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    Interested to Join - Not Decided
-                  </button>
-                </div>
-
-                {/* Row 3 */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedStatus("not_interested")}
-                    className={`flex-1 py-1.5 px-2 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium transition-all flex items-center justify-center text-xs ${
-                      selectedStatus === "not_interested" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    <XCircle className="w-3 h-3 mr-1" />
+        {showNotInterestedScreen ? (
+          <div className="flex flex-col h-full">
+            {/* Top Section: Status and Comments */}
+            <div className="flex gap-4 mb-4 flex-shrink-0">
+              {/* Status Section - Left Side */}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Status</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center bg-red-500 text-white font-semibold py-2 rounded-md">
                     Not Interested
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus("scheduled_free_session")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all flex items-center justify-center text-xs ${
-                      selectedStatus === "scheduled_free_session" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    <Calendar className="w-3 h-3 mr-1" />
-                    Scheduled for Free Session
-                  </button>
+                  </div>
                 </div>
+              </div>
 
-                {/* Row 4 */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedStatus("attended_free_session")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all flex items-center justify-center text-xs ${
-                      selectedStatus === "attended_free_session" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    <Users className="w-3 h-3 mr-1" />
-                    Attended Free Session
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus("converted_enrolled")}
-                    className={`flex-1 py-1.5 px-2 rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white font-medium transition-all flex items-center justify-center text-xs ${
-                      selectedStatus === "converted_enrolled" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    <Trophy className="w-3 h-3 mr-1" />
-                    Converted - Enrolled
-                  </button>
-                </div>
+              {/* Comments Section - Right Side */}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Comments</h3>
+                <Textarea
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  className="w-full h-32 p-3 border-2 border-gray-300 rounded-xl resize-none text-sm"
+                  placeholder="Add your comments here..."
+                />
 
-                {/* Row 5 */}
-                <div className="flex gap-2">
+                {/* Submit Button */}
+                <div className="flex justify-end mt-3">
                   <button
-                    onClick={() => setSelectedStatus("wants_to_speak")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all text-xs ${
-                      selectedStatus === "wants_to_speak" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
+                    onClick={handleSubmit}
+                    disabled={!selectedStatus || submitting}
+                    className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-50 transition-all text-sm"
                   >
-                    Wants to Speak with Someone
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus("unreachable")}
-                    className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all flex items-center justify-center text-xs ${
-                      selectedStatus === "unreachable" ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                    }`}
-                  >
-                    <Phone className="w-3 h-3 mr-1" />
-                    Unreachable
+                    {submitting ? "SUBMITTING..." : "SUBMIT"}
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Comments Section - Right Side */}
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Comments</h3>
-              <Textarea
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                className="w-full h-32 p-3 border-2 border-gray-300 rounded-xl resize-none text-sm"
-                placeholder="Add your comments here..."
-              />
-
-              {/* Submit Button */}
-              <div className="flex justify-end mt-3">
-                <button
-                  onClick={handleSubmit}
-                  disabled={!selectedStatus || submitting}
-                  className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-50 transition-all text-sm"
-                >
-                  {submitting ? "SUBMITTING..." : "SUBMIT"}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+            {/* Middle Section: Not Interested Reasons */}
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Reasons for Not Interested</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {notInterestedReasonOptions.map((reason) => (
+                  <button
+                    key={reason}
+                    onClick={() => handleReasonToggle(reason)}
+                    className={`py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-all text-xs ${
+                      notInterestedReasons.includes(reason) ? "ring-2 ring-blue-500 ring-offset-1" : ""
+                    }`}
+                  >
+                    {reason}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Bottom Section: History Table */}
-          <div className="flex-1 min-h-0">
-            <h3 className="text-lg font-semibold text-center mb-2 text-gray-800">History</h3>
-            <div className="border-2 border-gray-400 rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-800 text-white">
-                  <tr>
-                    <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Time Stamp</th>
-                    <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Status</th>
-                    <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Admin</th>
-                    <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Comments</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
+            {/* Bottom Section: History Table */}
+            <div className="flex-1 min-h-0">
+              <h3 className="text-lg font-semibold text-center mb-2 text-gray-800">History</h3>
+              <div className="border-2 border-gray-400 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-800 text-white">
                     <tr>
-                      <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                          <span className="ml-2 text-xs">Loading...</span>
-                        </div>
-                      </td>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Time Stamp</th>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Status</th>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Admin</th>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Comments</th>
                     </tr>
-                  ) : fetchError ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-4 text-center text-red-500 text-xs">
-                        {fetchError}
-                      </td>
-                    </tr>
-                  ) : statusHistory.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-4 text-center text-gray-500 text-xs">
-                        No status history found for this inquiry.
-                      </td>
-                    </tr>
-                  ) : (
-                    statusHistory.map((entry, index) => (
-                      <tr
-                        key={entry.id}
-                        className={index % 2 === 0 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-50"}
-                      >
-                        <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
-                          {formatDate(entry.created_at)}
-                        </td>
-                        <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
-                          {getStatusLabel(entry.status)}
-                        </td>
-                        <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">{entry.updated_by}</td>
-                        <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
-                          {entry.comments || "-"}
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                            <span className="ml-2 text-xs">Loading...</span>
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : fetchError ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-red-500 text-xs">
+                          {fetchError}
+                        </td>
+                      </tr>
+                    ) : statusHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500 text-xs">
+                          No status history found for this inquiry.
+                        </td>
+                      </tr>
+                    ) : (
+                      statusHistory.map((entry, index) => (
+                        <tr
+                          key={entry.id}
+                          className={index % 2 === 0 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-50"}
+                        >
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {formatDate(entry.created_at)}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {getStatusLabel(entry.status)}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {entry.updated_by}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {entry.comments || "-"}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="flex justify-start mt-3">
+              <button
+                onClick={() => {
+                  setShowNotInterestedScreen(false)
+                  setSelectedStatus("")
+                  setComments("")
+                  setNotInterestedReasons([])
+                }}
+                className="bg-gray-500 hover:bg-gray-800 text-white px-6 py-2 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-50 transition-all text-sm"
+              >
+                Back
+              </button>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col h-full">
+            {/* Top Section: Status and Comments */}
+            <div className="flex gap-4 mb-4 flex-shrink-0">
+              {/* Status Section - Left Side */}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Status</h3>
+                <div className="space-y-2">
+                  {/* Row 1 */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedStatus("inquiry_valid")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "inquiry_valid" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      Inquiry is Valid
+                    </button>
+                    <button
+                      onClick={() => setSelectedStatus("inquiry_called")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "inquiry_called" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      Inquiry has been Called
+                    </button>
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedStatus("student_seeking_info")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "student_seeking_info" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      Student Seeking Information
+                    </button>
+                    <button
+                      onClick={() => setSelectedStatus("interested_not_decided")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "interested_not_decided" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      Interested to Join - Not Decided
+                    </button>
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedStatus("not_interested")
+                        setShowNotInterestedScreen(true)
+                      }}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "not_interested" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      <XCircle className="w-3 h-3 mr-1" />
+                      Not Interested
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedStatus("scheduled_free_session")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "scheduled_free_session" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Scheduled for Free Session
+                    </button>
+                  </div>
+
+                  {/* Row 4 */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedStatus("attended_free_session")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "attended_free_session" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      <Users className="w-3 h-3 mr-1" />
+                      Attended Free Session
+                    </button>
+                    <button
+                      onClick={() => setSelectedStatus("converted_enrolled")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "converted_enrolled" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      <Trophy className="w-3 h-3 mr-1" />
+                      Converted - Enrolled
+                    </button>
+                  </div>
+
+                  {/* Row 5 */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedStatus("wants_to_speak")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "wants_to_speak" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      Wants to Speak with Someone
+                    </button>
+                    <button
+                      onClick={() => setSelectedStatus("unreachable")}
+                      className={`flex-1 py-1.5 px-2 rounded-full border-2 border-gray-300 bg-gray-50 hover:bg-green-100 text-gray-700 font-medium transition-all text-xs ${
+                        selectedStatus === "unreachable" ? "ring-2 ring-red-500 ring-offset-1" : ""
+                      }`}
+                    >
+                      <Phone className="w-3 h-3 mr-1" />
+                      Unreachable
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comments Section - Right Side */}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-center mb-3 text-gray-800">Comments</h3>
+                <Textarea
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  className="w-full h-32 p-3 border-2 border-gray-300 rounded-xl resize-none text-sm"
+                  placeholder="Add your comments here..."
+                />
+
+                {/* Submit Button */}
+                <div className="flex justify-end mt-3">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!selectedStatus || submitting}
+                    className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-50 transition-all text-sm"
+                  >
+                    {submitting ? "SUBMITTING..." : "SUBMIT"}
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Section: History Table */}
+            <div className="flex-1 min-h-0">
+              <h3 className="text-lg font-semibold text-center mb-2 text-gray-800">History</h3>
+              <div className="border-2 border-gray-400 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-800 text-white">
+                    <tr>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Time Stamp</th>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Status</th>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Admin</th>
+                      <th className="px-2 py-1 text-left font-semibold text-xs w-1/4">Comments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                            <span className="ml-2 text-xs">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : fetchError ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-red-500 text-xs">
+                          {fetchError}
+                        </td>
+                      </tr>
+                    ) : statusHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500 text-xs">
+                          No status history found for this inquiry.
+                        </td>
+                      </tr>
+                    ) : (
+                      statusHistory.map((entry, index) => (
+                        <tr
+                          key={entry.id}
+                          className={index % 2 === 0 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-50"}
+                        >
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {formatDate(entry.created_at)}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {getStatusLabel(entry.status)}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {entry.updated_by}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 border-b border-gray-200 text-xs">
+                            {entry.comments || "-"}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

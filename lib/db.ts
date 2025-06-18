@@ -832,3 +832,177 @@ export async function getInquiryStatusHistory(inquiryId: number) {
     return []
   }
 }
+
+// New functions for inquiry button stats with burn/unburn calculation
+export async function getTotalInquiryStatusUpdates() {
+  try {
+    console.log("🔍 Getting total inquiry status updates...")
+    const result = await sql`
+      SELECT COUNT(*) as total_updates FROM inquiry_status
+    `
+    console.log("✅ Total inquiry status updates retrieved successfully")
+    return Number(result[0]?.total_updates || 0)
+  } catch (error) {
+    console.error("❌ Error getting total inquiry status updates:", error)
+    return 0
+  }
+}
+
+export async function getTopInquiryStatusUpdaters() {
+  try {
+    console.log("🔍 Getting top inquiry status updaters...")
+    const result = await sql`
+      SELECT updated_by, COUNT(*) as update_count
+      FROM inquiry_status
+      GROUP BY updated_by
+      ORDER BY update_count DESC
+    `
+    console.log("✅ Top inquiry status updaters retrieved successfully")
+    return result.map((row) => ({
+      updated_by: row.updated_by,
+      update_count: Number(row.update_count),
+    }))
+  } catch (error) {
+    console.error("❌ Error getting top inquiry status updaters:", error)
+    return []
+  }
+}
+
+export async function getInquiryStatusUpdateCounts() {
+  try {
+    console.log("🔍 Getting inquiry status update counts...")
+    const result = await sql`
+      SELECT status, COUNT(*) as update_count
+      FROM inquiry_status
+      GROUP BY status
+      ORDER BY update_count DESC
+    `
+    console.log("✅ Inquiry status update counts retrieved successfully")
+    return result.map((row) => ({
+      status: row.status,
+      update_count: Number(row.update_count),
+    }))
+  } catch (error) {
+    console.error("❌ Error getting inquiry status update counts:", error)
+    return []
+  }
+}
+
+// New function to get burn/unburn statistics
+export async function getBurnUnburnStats() {
+  try {
+    console.log("🔍 Getting burn/unburn statistics...")
+
+    // Get total inquiries count
+    const inquiryCountResult = await sql`
+      SELECT COUNT(*) as total_inquiries FROM inquiries
+    `
+    const totalInquiries = Number(inquiryCountResult[0]?.total_inquiries || 0)
+
+    // Get total burns (status updates)
+    const burnResult = await sql`
+      SELECT COUNT(*) as total_burns FROM inquiry_status
+    `
+    const totalBurns = Number(burnResult[0]?.total_burns || 0)
+
+    // Calculate unburns: (total inquiries × 3) - burns
+    const maxPossibleBurns = totalInquiries * 3
+    const totalUnburns = Math.max(0, maxPossibleBurns - totalBurns)
+
+    console.log("✅ Burn/unburn statistics retrieved successfully")
+    return {
+      totalInquiries,
+      totalBurns,
+      totalUnburns,
+      maxPossibleBurns,
+      burnPercentage: maxPossibleBurns > 0 ? (totalBurns / maxPossibleBurns) * 100 : 0,
+      unburnPercentage: maxPossibleBurns > 0 ? (totalUnburns / maxPossibleBurns) * 100 : 0,
+    }
+  } catch (error) {
+    console.error("❌ Error getting burn/unburn statistics:", error)
+    return {
+      totalInquiries: 0,
+      totalBurns: 0,
+      totalUnburns: 0,
+      maxPossibleBurns: 0,
+      burnPercentage: 0,
+      unburnPercentage: 0,
+    }
+  }
+}
+
+// Updated WhatsApp functions with better error handling
+export async function getInquiryWhatsAppSentCounts() {
+  try {
+    console.log("🔍 Getting inquiry WhatsApp sent counts...")
+
+    // First check if the table exists
+    const tableCheck = await sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'whatsapp_messages'
+      );
+    `
+
+    if (!tableCheck[0]?.exists) {
+      console.log("📝 whatsapp_messages table doesn't exist yet - returning empty array")
+      return []
+    }
+
+    const result = await sql`
+      SELECT message_type, COUNT(*) as sent_count
+      FROM whatsapp_messages
+      WHERE record_type = 'inquiry'
+      GROUP BY message_type
+      ORDER BY sent_count DESC
+    `
+    console.log("✅ Inquiry WhatsApp sent counts retrieved successfully")
+    return result.map((row) => ({
+      message_type: row.message_type,
+      sent_count: Number(row.sent_count),
+    }))
+  } catch (error) {
+    console.error("❌ Error getting inquiry WhatsApp sent counts:", error)
+
+    // Check if it's a table doesn't exist error
+    if (error instanceof Error && error.message.includes('relation "whatsapp_messages" does not exist')) {
+      console.log("📝 whatsapp_messages table doesn't exist yet - returning empty array")
+      return []
+    }
+
+    return []
+  }
+}
+
+export async function getRegistrationWhatsAppSentCounts() {
+  try {
+    console.log("🔍 Getting registration WhatsApp sent counts...")
+
+    // Check if registrations table has the WhatsApp columns
+    const result = await sql`
+      SELECT 
+        SUM(CASE WHEN whatsapp_welcome_sent = TRUE THEN 1 ELSE 0 END) as welcome_sent,
+        SUM(CASE WHEN whatsapp_payment_sent = TRUE THEN 1 ELSE 0 END) as payment_sent,
+        SUM(CASE WHEN whatsapp_reminder_sent = TRUE THEN 1 ELSE 0 END) as reminder_sent
+      FROM registrations
+    `
+    console.log("✅ Registration WhatsApp sent counts retrieved successfully")
+    const counts = result[0] || {}
+    return [
+      { message_type: "welcome", sent_count: Number(counts.welcome_sent || 0) },
+      { message_type: "payment", sent_count: Number(counts.payment_sent || 0) },
+      { message_type: "reminder", sent_count: Number(counts.reminder_sent || 0) },
+    ].filter((item) => item.sent_count > 0) // Only return types that have been sent at least once
+  } catch (error) {
+    console.error("❌ Error getting registration WhatsApp sent counts:", error)
+
+    // Check if columns don't exist
+    if (error instanceof Error && error.message.includes("column") && error.message.includes("does not exist")) {
+      console.log("📝 WhatsApp columns don't exist in registrations table yet - returning empty array")
+      return []
+    }
+
+    return []
+  }
+}
