@@ -1,59 +1,38 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateInquiry, deleteInquiry } from "@/lib/db"
+import { updateInquiry } from "@/lib/db"
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number.parseInt(params.id)
     if (isNaN(id)) {
-      return NextResponse.json({ error: "Invalid inquiry ID" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
     }
 
     const data = await request.json()
-    console.log(`📤 PATCH /api/inquiries/${id} - Updating inquiry with data:`, data)
+    console.log(`📝 PATCH /api/inquiries/${id} - Updating inquiry...`, data)
 
-    const updated = await updateInquiry(id, {
+    // Map the form field names to database field names
+    const dbData = {
       name: data.name,
       phone: data.phone,
-      email: data.email,
-      heard_from: data.heardFrom,
-      question: data.question,
-      checkbox_field: data.checkboxField,
-      program_of_interest: data.programOfInterest, // Added new field
-    })
-
-    if (updated) {
-      console.log(`✅ Inquiry ${id} updated successfully.`)
-      return NextResponse.json({ success: true, inquiry: updated })
-    } else {
-      console.warn(`⚠️ Inquiry ${id} not found or failed to update.`)
-      return NextResponse.json({ error: "Inquiry not found or failed to update" }, { status: 404 })
+      email: data.email || null,
+      heard_from: data.heardFrom || null,
+      question: data.question || null,
+      checkbox_field: data.checkboxField || false,
+      course: data.course || null, // Add this line
     }
+
+    const updatedInquiry = await updateInquiry(id, dbData)
+
+    if (!updatedInquiry) {
+      console.error(`❌ Failed to update inquiry with ID ${id}`)
+      return NextResponse.json({ error: "Failed to update inquiry" }, { status: 500 })
+    }
+
+    console.log(`✅ Inquiry ${id} updated successfully`)
+    return NextResponse.json({ success: true, inquiry: updatedInquiry })
   } catch (error) {
-    console.error(`❌ Error updating inquiry ${params.id}:`, error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
-
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const id = Number.parseInt(params.id)
-    if (isNaN(id)) {
-      return NextResponse.json({ error: "Invalid inquiry ID" }, { status: 400 })
-    }
-
-    console.log(`🗑️ DELETE /api/inquiries/${id} - Deleting inquiry...`)
-
-    const deleted = await deleteInquiry(id)
-
-    if (deleted) {
-      console.log(`✅ Inquiry ${id} deleted successfully.`)
-      return NextResponse.json({ success: true })
-    } else {
-      console.warn(`⚠️ Inquiry ${id} not found or failed to delete.`)
-      return NextResponse.json({ error: "Inquiry not found or failed to delete" }, { status: 404 })
-    }
-  } catch (error) {
-    console.error(`❌ Error deleting inquiry ${params.id}:`, error)
+    console.error(`💥 Error updating inquiry:`, error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

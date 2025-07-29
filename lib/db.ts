@@ -74,7 +74,7 @@ export async function getInquiries() {
   try {
     console.log("🔍 Getting inquiries...")
     const result = await sql`
-      SELECT *, program_of_interest FROM inquiries ORDER BY created_at DESC
+      SELECT * FROM inquiries ORDER BY created_at DESC
     `
     console.log("✅ Found", result.length, "inquiries")
     return result
@@ -91,13 +91,13 @@ export async function createInquiry(data: {
   heard_from?: string
   question?: string
   checkbox_field?: boolean
-  program_of_interest?: string // Added new field
+  course?: string
 }) {
   try {
     console.log("📝 Creating inquiry:", data.name)
     const result = await sql`
-      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, program_of_interest)
-      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heard_from || null}, ${data.question || null}, ${data.checkbox_field || false}, ${data.program_of_interest || "MDCAT"})
+      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course)
+      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heard_from || null}, ${data.question || null}, ${data.checkbox_field || false}, ${data.course || "MDCAT"})
       RETURNING *
     `
     console.log("✅ Inquiry created successfully")
@@ -433,7 +433,7 @@ export async function updateInquiry(
     heard_from?: string
     question?: string
     checkbox_field?: boolean
-    program_of_interest?: string // Added new field
+    course?: string
   },
 ) {
   try {
@@ -447,7 +447,7 @@ export async function updateInquiry(
         heard_from = COALESCE(${data.heard_from}, heard_from),
         question = COALESCE(${data.question}, question),
         checkbox_field = COALESCE(${data.checkbox_field}, checkbox_field),
-        program_of_interest = COALESCE(${data.program_of_interest}, program_of_interest), -- Added new field
+        course = COALESCE(${data.course}, course),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

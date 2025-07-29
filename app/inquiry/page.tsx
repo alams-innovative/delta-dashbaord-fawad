@@ -32,7 +32,7 @@ export default function InquiryPage() {
     heardFrom: "",
     question: "",
     checkboxField: false,
-    programOfInterest: "", // Added new field
+    course: "MDCAT", // Add this line, default to MDCAT
   })
   const { toast } = useToast()
 
@@ -153,7 +153,7 @@ export default function InquiryPage() {
           heardFrom: "",
           question: "",
           checkboxField: false,
-          programOfInterest: "", // Reset new field
+          course: "MDCAT",
         })
         setRecaptchaToken(null)
         if (window.grecaptcha) {
@@ -243,26 +243,6 @@ export default function InquiryPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="programOfInterest">Program of Interest</Label>
-                <Select
-                  name="programOfInterest"
-                  value={formData.programOfInterest}
-                  onValueChange={(value) => handleInputChange("programOfInterest", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a program" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MDCAT">MDCAT</SelectItem>
-                    <SelectItem value="Matric">Matric</SelectItem>
-                    <SelectItem value="FSc Pre-Engineering">FSc Pre-Engineering</SelectItem>
-                    <SelectItem value="FSc Medical">FSc Medical</SelectItem>
-                    <SelectItem value="ICS">ICS</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="heardFrom">How did you hear about us?</Label>
                 <Select
                   name="heardFrom"
@@ -279,6 +259,28 @@ export default function InquiryPage() {
                     <SelectItem value="friend">Friend/Family</SelectItem>
                     <SelectItem value="advertisement">Advertisement</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Add the new Course dropdown here */}
+              <div className="space-y-2">
+                <Label htmlFor="course">Interested Course *</Label>
+                <Select
+                  name="course"
+                  value={formData.course}
+                  onValueChange={(value) => handleInputChange("course", value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Matric">Matric</SelectItem>
+                    <SelectItem value="MDCAT">MDCAT</SelectItem>
+                    <SelectItem value="FSc Pre-Engineering">FSc Pre-Engineering</SelectItem>
+                    <SelectItem value="FSc Medical">FSc Medical</SelectItem>
+                    <SelectItem value="ICS">ICS</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
