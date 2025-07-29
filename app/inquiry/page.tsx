@@ -32,6 +32,7 @@ export default function InquiryPage() {
     heardFrom: "",
     question: "",
     checkboxField: false,
+    programOfInterest: "", // Added new field
   })
   const { toast } = useToast()
 
@@ -152,6 +153,7 @@ export default function InquiryPage() {
           heardFrom: "",
           question: "",
           checkboxField: false,
+          programOfInterest: "", // Reset new field
         })
         setRecaptchaToken(null)
         if (window.grecaptcha) {
@@ -238,6 +240,26 @@ export default function InquiryPage() {
                     onChange={(e) => handleInputChange("email", e.target.value)}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="programOfInterest">Program of Interest</Label>
+                <Select
+                  name="programOfInterest"
+                  value={formData.programOfInterest}
+                  onValueChange={(value) => handleInputChange("programOfInterest", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MDCAT">MDCAT</SelectItem>
+                    <SelectItem value="Matric">Matric</SelectItem>
+                    <SelectItem value="FSc Pre-Engineering">FSc Pre-Engineering</SelectItem>
+                    <SelectItem value="FSc Medical">FSc Medical</SelectItem>
+                    <SelectItem value="ICS">ICS</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

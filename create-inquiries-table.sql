@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
     whatsapp_welcome_sent BOOLEAN DEFAULT FALSE,
     whatsapp_followup_sent BOOLEAN DEFAULT FALSE,
     whatsapp_reminder_sent BOOLEAN DEFAULT FALSE,
+    program_of_interest VARCHAR(255) DEFAULT 'MDCAT', -- New column for program of interest
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

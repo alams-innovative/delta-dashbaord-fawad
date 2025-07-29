@@ -62,6 +62,7 @@ export default function InquiriesPage() {
     heardFrom: "",
     question: "",
     checkboxField: false,
+    programOfInterest: "", // Added new field
   })
 
   const [viewingInquiry, setViewingInquiry] = useState<any>(null)
@@ -151,7 +152,8 @@ export default function InquiriesPage() {
       return (
         (inquiry.name || "").toLowerCase().includes(searchLower) ||
         (inquiry.phone || "").toLowerCase().includes(searchLower) ||
-        (inquiry.email || "").toLowerCase().includes(searchLower)
+        (inquiry.email || "").toLowerCase().includes(searchLower) ||
+        (inquiry.programOfInterest || "").toLowerCase().includes(searchLower) // Filter by new field
       )
     })
     .sort((a, b) => {
@@ -214,6 +216,7 @@ export default function InquiriesPage() {
       heardFrom: inquiry.heardFrom || "",
       question: inquiry.question || "",
       checkboxField: inquiry.checkboxField || false,
+      programOfInterest: inquiry.programOfInterest || "", // Set new field
     })
     setEditingId(inquiry.id)
     setShowEditForm(true)
@@ -454,7 +457,7 @@ export default function InquiriesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by name, phone, or email..."
+              placeholder="Search by name, phone, email, or program..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-white/50 border-gray-200 focus:border-blue-400"
@@ -507,6 +510,8 @@ export default function InquiriesPage() {
                       <TableHead className="min-w-[100px]">Phone</TableHead>
                       <TableHead className="min-w-[120px] hidden md:table-cell">Email</TableHead>
                       <TableHead className="min-w-[80px] hidden lg:table-cell">Source</TableHead>
+                      <TableHead className="min-w-[120px] hidden lg:table-cell">Program</TableHead>{" "}
+                      {/* New Table Head */}
                       <TableHead className="w-[80px] hidden lg:table-cell">Attend Session</TableHead>
                       <TableHead
                         className="cursor-pointer select-none min-w-[100px] hidden lg:table-cell"
@@ -531,7 +536,9 @@ export default function InquiriesPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center">
+                        <TableCell colSpan={10} className="text-center">
+                          {" "}
+                          {/* Updated colspan */}
                           <div className="flex justify-center items-center py-4">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                             <span className="ml-2">Loading inquiries...</span>
@@ -540,7 +547,9 @@ export default function InquiriesPage() {
                       </TableRow>
                     ) : currentInquiries.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
+                        <TableCell colSpan={10} className="text-center py-8">
+                          {" "}
+                          {/* Updated colspan */}
                           <div className="flex flex-col items-center justify-center">
                             <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
                             <p className="text-lg font-medium text-gray-700">
@@ -562,6 +571,8 @@ export default function InquiriesPage() {
                           <TableCell>{inquiry.phone}</TableCell>
                           <TableCell className="hidden md:table-cell">{inquiry.email || "—"}</TableCell>
                           <TableCell className="hidden lg:table-cell">{inquiry.heardFrom || "Unknown"}</TableCell>
+                          <TableCell className="hidden lg:table-cell">{inquiry.programOfInterest || "N/A"}</TableCell>{" "}
+                          {/* New Table Cell */}
                           <TableCell className="hidden lg:table-cell">
                             {inquiry.checkboxField ? (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -690,6 +701,10 @@ export default function InquiriesPage() {
                           <div>
                             <span className="text-gray-500">Source:</span>
                             <p className="font-medium">{inquiry.heardFrom || "Unknown"}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Program:</span> {/* New field for mobile */}
+                            <p className="font-medium">{inquiry.programOfInterest || "N/A"}</p>
                           </div>
                           <div>
                             <span className="text-gray-500">Submitted:</span>
@@ -941,6 +956,24 @@ export default function InquiriesPage() {
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editProgramOfInterest" className="text-gray-700 font-medium">
+                      Program of Interest
+                    </Label>
+                    <select
+                      id="editProgramOfInterest"
+                      value={editFormData.programOfInterest}
+                      onChange={(e) => setEditFormData({ ...editFormData, programOfInterest: e.target.value })}
+                      className="w-full px-3 py-2 bg-white/50 border border-gray-200 rounded-md focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    >
+                      <option value="">Select a program</option>
+                      <option value="MDCAT">MDCAT</option>
+                      <option value="Matric">Matric</option>
+                      <option value="FSc Pre-Engineering">FSc Pre-Engineering</option>
+                      <option value="FSc Medical">FSc Medical</option>
+                      <option value="ICS">ICS</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="editQuestion" className="text-gray-700 font-medium">
@@ -1018,6 +1051,11 @@ export default function InquiriesPage() {
                       {viewingInquiry.heardFrom || "Not specified"}
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">Program of Interest</Label>{" "}
+                    {/* New field for view dialog */}
+                    <div className="p-3 bg-gray-50 rounded-md border">{viewingInquiry.programOfInterest || "N/A"}</div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-gray-700 font-medium">Question/Message</Label>
@@ -1065,6 +1103,10 @@ export default function InquiriesPage() {
                   <div>
                     <span className="font-medium text-blue-700">Email:</span>{" "}
                     {convertingInquiry?.email || "Not provided"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-blue-700">Program:</span> {/* New field for convert dialog */}
+                    {convertingInquiry?.programOfInterest || "N/A"}
                   </div>
                   <div>
                     <span className="font-medium text-blue-700">Attend Session:</span>{" "}

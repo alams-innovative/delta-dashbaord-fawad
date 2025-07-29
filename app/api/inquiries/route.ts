@@ -33,7 +33,7 @@ export async function GET() {
 
     // Try to fetch inquiries from database
     const result = await sql`
-      SELECT * FROM inquiries ORDER BY created_at DESC
+      SELECT *, program_of_interest FROM inquiries ORDER BY created_at DESC
     `
 
     console.log("📊 Raw database result:", result.length, "inquiries found")
@@ -72,6 +72,7 @@ export async function GET() {
         whatsapp_welcome_sent: inquiry.whatsapp_welcome_sent || false,
         whatsapp_followup_sent: inquiry.whatsapp_followup_sent || false,
         whatsapp_reminder_sent: inquiry.whatsapp_reminder_sent || false,
+        programOfInterest: inquiry.program_of_interest || "MDCAT", // Include new field
         createdAt: formattedDate,
       }
     })
@@ -120,8 +121,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field)
-      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heardFrom || null}, ${data.question || null}, ${data.checkboxField || false})
+      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, program_of_interest)
+      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heardFrom || null}, ${data.question || null}, ${data.checkboxField || false}, ${data.programOfInterest || "MDCAT"})
       RETURNING *
     `
 
