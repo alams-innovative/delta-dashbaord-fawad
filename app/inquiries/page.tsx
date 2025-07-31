@@ -1,8 +1,10 @@
 "use client"
 
+import { TableCaption } from "@/components/ui/table"
+
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Search,
   Eye,
@@ -13,16 +15,26 @@ import {
   Calendar,
   Clock,
   CheckCircle,
-  XCircle,
   Trash2,
+  Filter,
+  Flame,
+  Snowflake,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Pagination,
   PaginationContent,
@@ -32,13 +44,15 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
-import { ChevronDown, ChevronUp } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { WhatsAppButtons } from "@/components/whatsapp-buttons"
 import { useAuth } from "@/components/auth-provider"
 import { InquiryStatusButton } from "@/components/inquiry-status-button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" // Import RadioGroup
+import { Checkbox } from "@/components/ui/checkbox"
+import { useToast } from "@/hooks/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
 
 interface Inquiry {
   id: number
@@ -48,16 +62,32 @@ interface Inquiry {
   heardFrom?: string
   question?: string
   isRead: boolean
-  checkboxField: boolean
+  checkboxField?: boolean
   whatsapp_welcome_sent: boolean
   whatsapp_followup_sent: boolean
   whatsapp_reminder_sent: boolean
   createdAt: string
   course: string
-  gender?: string // New field
-  matricMarks?: number // New field
-  outOfMarks?: number // New field
-  intermediateStream?: string // New field
+  gender?: string
+  matricMarks?: number
+  outOfMarks?: number
+  intermediateStream?: string
+}
+
+interface BurnUnburnStats {
+  totalInquiries: number
+  totalBurns: number
+  totalUnburns: number
+  maxPossibleBurns: number
+  burnPercentage: number
+  unburnPercentage: number
+}
+
+interface InquiryButtonStats {
+  totalUpdates: number
+  topUpdaters: { updated_by: string; update_count: number }[]
+  statusCounts: { status: string; update_count: number }[]
+  burnUnburnStats: BurnUnburnStats
 }
 
 export default function InquiriesPage() {
@@ -76,23 +106,9 @@ export default function InquiriesPage() {
 
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [editFormData, setEditFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    heardFrom: "",
-    question: "",
-    checkboxField: false,
-    course: "",
-    gender: "", // New field
-    matricMarks: "", // New field
-    outOfMarks: "", // New field
-    intermediateStream: "", // New field
-  })
-
+  const [editFormData, setEditFormData] = useState<Partial<Inquiry>>({})
   const [viewingInquiry, setViewingInquiry] = useState<Inquiry | null>(null)
   const [showViewDialog, setShowViewDialog] = useState(false)
-
   const [showConvertDialog, setShowConvertDialog] = useState(false)
   const [convertingInquiry, setConvertingInquiry] = useState<Inquiry | null>(null)
   const [convertFormData, setConvertFormData] = useState({
@@ -104,6 +120,11 @@ export default function InquiriesPage() {
     cnic: "",
     comments: "",
   })
+  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [inquiryButtonStats, setInquiryButtonStats] = useState<InquiryButtonStats | null>(null)
+  const [filterCourse, setFilterCourse] = useState<string>("All")
+  const { toast } = useToast()
 
   const fetchInquiries = async () => {
     setLoading(true)
@@ -169,8 +190,31 @@ export default function InquiriesPage() {
     }
   }
 
-  const filteredInquiries = inquiries
-    .filter((inquiry) => {
+  const fetchInquiryButtonStats = async () => {
+    try {
+      const response = await fetch("/api/reports/inquiry-button-stats")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data: InquiryButtonStats = await response.json()
+      setInquiryButtonStats(data)
+    } catch (error) {
+      console.error("Failed to fetch inquiry button stats:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load button usage statistics.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  useEffect(() => {
+    fetchInquiries()
+    fetchInquiryButtonStats()
+  }, [])
+
+  const filteredInquiries = useMemo(() => {
+    let filtered = inquiries.filter((inquiry) => {
       if (!searchTerm) return true
       const searchLower = searchTerm.toLowerCase()
       return (
@@ -181,21 +225,28 @@ export default function InquiriesPage() {
         (inquiry.intermediateStream || "").toLowerCase().includes(searchLower) // Search by intermediate stream
       )
     })
-    .sort((a, b) => {
-      // Sort by timestamp (createdAt)
-      const dateA = new Date(a.createdAt).getTime()
-      const dateB = new Date(b.createdAt).getTime()
 
-      if (sortOrder === "asc") {
-        return dateA - dateB // Oldest first
-      } else {
-        return dateB - dateA // Newest first (default)
-      }
-    })
+    if (filterCourse !== "All") {
+      filtered = filtered.filter((inquiry) => inquiry.course === filterCourse)
+    }
 
-  useEffect(() => {
-    fetchInquiries()
-  }, [])
+    return filtered
+  }, [inquiries, searchTerm, filterCourse])
+  //   .sort((a, b) => {
+  //     // Sort by timestamp (createdAt)
+  //     const dateA = new Date(a.createdAt).getTime()
+  //     const dateB = new Date(b.createdAt).getTime()
+
+  //     if (sortOrder === "asc") {
+  //       return dateA - dateB // Oldest first
+  //     } else {
+  //       return dateB - dateA // Newest first (default)
+  //     }
+  //   })
+
+  // useEffect(() => {
+  //   fetchInquiries()
+  // }, [])
 
   // Add this useEffect after the existing useEffect
   useEffect(() => {
@@ -406,6 +457,113 @@ export default function InquiriesPage() {
     }
   }
 
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      const response = await fetch(`/api/inquiries/${id}/read`, {
+        method: "PATCH",
+      })
+      if (response.ok) {
+        setInquiries((prev) => prev.map((inquiry) => (inquiry.id === id ? { ...inquiry, isRead: true } : inquiry)))
+        toast({
+          title: "Success",
+          description: "Inquiry marked as read.",
+        })
+      } else {
+        throw new Error("Failed to mark as read")
+      }
+    } catch (error) {
+      console.error("Error marking as read:", error)
+      toast({
+        title: "Error",
+        description: "Failed to mark inquiry as read.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteInquiry = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this inquiry?")) {
+      return
+    }
+    try {
+      const response = await fetch(`/api/inquiries/${id}/delete`, {
+        method: "DELETE",
+      })
+      if (response.ok) {
+        setInquiries((prev) => prev.filter((inquiry) => inquiry.id !== id))
+        toast({
+          title: "Success",
+          description: "Inquiry deleted successfully.",
+        })
+      } else {
+        throw new Error("Failed to delete inquiry")
+      }
+    } catch (error) {
+      console.error("Error deleting inquiry:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete inquiry.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditClick = (inquiry: Inquiry) => {
+    setSelectedInquiry(inquiry)
+    setEditFormData({
+      name: inquiry.name,
+      phone: inquiry.phone,
+      email: inquiry.email,
+      heardFrom: inquiry.heardFrom,
+      question: inquiry.question,
+      checkboxField: inquiry.checkboxField,
+      course: inquiry.course,
+      gender: inquiry.gender,
+      matricMarks: inquiry.matricMarks,
+      outOfMarks: inquiry.outOfMarks,
+      intermediateStream: inquiry.intermediateStream,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleEditFormChange = (field: string, value: any) => {
+    setEditFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleEditSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selectedInquiry) return
+
+    try {
+      const response = await fetch(`/api/inquiries/${selectedInquiry.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editFormData),
+      })
+
+      if (response.ok) {
+        await fetchInquiries() // Re-fetch all inquiries to get updated data
+        setIsEditDialogOpen(false)
+        toast({
+          title: "Success",
+          description: "Inquiry updated successfully.",
+        })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update inquiry")
+      }
+    } catch (error) {
+      console.error("Error updating inquiry:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update inquiry. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   // Format date for display
   const formatDate = (dateString: string) => {
     if (!dateString) return "Unknown"
@@ -487,7 +645,7 @@ export default function InquiriesPage() {
 
         {/* Controls */}
         <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:gap-4 mb-4 sm:mb-6">
-          <div className="relative flex-1">
+          {/* <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search by name, phone, email, or course..."
@@ -508,7 +666,44 @@ export default function InquiriesPage() {
               <SelectItem value="100">100 per page</SelectItem>
               <SelectItem value="200">200 per page</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
+          <div className="container mx-auto p-4">
+            <Tabs defaultValue="inquiries" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <TabsTrigger value="inquiries">All Inquiries</TabsTrigger>
+                <TabsTrigger value="button-usage">Button Usage</TabsTrigger>
+                {/* Add more tabs as needed */}
+              </TabsList>
+
+              <TabsContent value="inquiries" className="mt-4">
+                <div className="mb-4 flex flex-col md:flex-row items-center gap-4">
+                  <div className="relative flex-1 w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <Input
+                      type="text"
+                      placeholder="Search inquiries..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-full"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Filter size={20} className="text-gray-400" />
+                    <Select value={filterCourse} onValueChange={setFilterCourse}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter by Course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All Courses</SelectItem>
+                        <SelectItem value="MDCAT">MDCAT</SelectItem>
+                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
 
         {/* Main Content Card */}
@@ -538,34 +733,12 @@ export default function InquiriesPage() {
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[60px]">ID</TableHead>
-                      <TableHead className="min-w-[120px]">Name</TableHead>
+                      <TableHead className="w-[60px]">Name</TableHead>
                       <TableHead className="min-w-[100px]">Phone</TableHead>
                       <TableHead className="min-w-[120px] hidden md:table-cell">Email</TableHead>
-                      <TableHead className="min-w-[80px] hidden lg:table-cell">Source</TableHead>
-                      <TableHead className="min-w-[100px] hidden lg:table-cell">Course</TableHead>
-                      <TableHead className="min-w-[80px] hidden lg:table-cell">Gender</TableHead> {/* New */}
-                      <TableHead className="min-w-[100px] hidden lg:table-cell">Matric Marks</TableHead> {/* New */}
-                      <TableHead className="min-w-[100px] hidden lg:table-cell">Intermediate Stream</TableHead>{" "}
-                      {/* New */}
-                      <TableHead className="w-[80px] hidden lg:table-cell">Attend Session</TableHead>
-                      <TableHead
-                        className="cursor-pointer select-none min-w-[100px] hidden lg:table-cell"
-                        onClick={handleSort}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>Date</span>
-                          <div className="flex flex-col">
-                            <ChevronUp
-                              className={`h-3 w-3 ${sortOrder === "asc" ? "text-purple-600" : "text-gray-400"}`}
-                            />
-                            <ChevronDown
-                              className={`h-3 w-3 -mt-1 ${sortOrder === "desc" ? "text-purple-600" : "text-gray-400"}`}
-                            />
-                          </div>
-                        </div>
-                      </TableHead>
-                      <TableHead className="min-w-[120px]">WhatsApp</TableHead>
+                      <TableHead className="min-w-[80px] hidden lg:table-cell">Course</TableHead>
+                      <TableHead className="min-w-[80px] hidden lg:table-cell">Heard From</TableHead>
+                      <TableHead className="w-[80px] hidden lg:table-cell">Status</TableHead>
                       <TableHead className="text-right w-[150px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -602,88 +775,107 @@ export default function InquiriesPage() {
                     ) : (
                       currentInquiries.map((inquiry: Inquiry) => (
                         <TableRow key={inquiry.id}>
-                          <TableCell className="font-medium">{inquiry.id}</TableCell>
                           <TableCell className="font-medium">{inquiry.name}</TableCell>
                           <TableCell>{inquiry.phone}</TableCell>
                           <TableCell className="hidden md:table-cell">{inquiry.email || "—"}</TableCell>
-                          <TableCell className="hidden lg:table-cell">{inquiry.heardFrom || "Unknown"}</TableCell>
                           <TableCell className="hidden lg:table-cell">{inquiry.course || "N/A"}</TableCell>
-                          <TableCell className="hidden lg:table-cell">{inquiry.gender || "N/A"}</TableCell> {/* New */}
+                          <TableCell className="hidden lg:table-cell">{inquiry.heardFrom || "Unknown"}</TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            {inquiry.matricMarks !== null && inquiry.outOfMarks !== null
-                              ? `${inquiry.matricMarks}/${inquiry.outOfMarks}`
-                              : "N/A"}
-                          </TableCell>{" "}
-                          {/* New */}
-                          <TableCell className="hidden lg:table-cell">{inquiry.intermediateStream || "N/A"}</TableCell>{" "}
-                          {/* New */}
-                          <TableCell className="hidden lg:table-cell">
-                            {inquiry.checkboxField ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="h-3 w-3 mr-1" /> Yes
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">
-                                <XCircle className="h-3 w-3 mr-1" /> No
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-500 hidden lg:table-cell">
-                            {formatDate(inquiry.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <WhatsAppButtons
-                              id={inquiry.id}
-                              name={inquiry.name}
-                              phone={inquiry.phone}
-                              type="inquiry"
-                              welcomeSent={inquiry.whatsapp_welcome_sent}
-                              followupSent={inquiry.whatsapp_followup_sent}
-                              reminderSent={inquiry.whatsapp_reminder_sent}
-                              onButtonClick={fetchInquiries}
-                            />
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${inquiry.isRead ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}
+                            >
+                              {inquiry.isRead ? "Read" : "New"}
+                            </span>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end space-x-1">
-                              <InquiryStatusButton
-                                inquiryId={inquiry.id}
-                                inquiryName={inquiry.name}
-                                onStatusUpdate={fetchInquiries}
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleView(inquiry)}
-                                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 p-2"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEdit(inquiry)}
-                                className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100 p-2"
-                              >
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="icon" onClick={() => setSelectedInquiry(inquiry)}>
+                                    <Eye className="h-4 w-4" />
+                                    <span className="sr-only">View</span>
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[600px]">
+                                  <DialogHeader>
+                                    <DialogTitle>Inquiry Details</DialogTitle>
+                                    <DialogDescription>Details of the inquiry from {inquiry.name}.</DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Name:</Label>
+                                      <span className="col-span-3">{inquiry.name}</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Phone:</Label>
+                                      <span className="col-span-3">{inquiry.phone}</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Email:</Label>
+                                      <span className="col-span-3">{inquiry.email || "N/A"}</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Course:</Label>
+                                      <span className="col-span-3">{inquiry.course}</span>
+                                    </div>
+                                    {inquiry.course === "Intermediate" && (
+                                      <>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <Label className="text-right">Gender:</Label>
+                                          <span className="col-span-3">{inquiry.gender || "N/A"}</span>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <Label className="text-right">Matric Marks:</Label>
+                                          <span className="col-span-3">{inquiry.matricMarks || "N/A"}</span>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <Label className="text-right">Out of Marks:</Label>
+                                          <span className="col-span-3">{inquiry.outOfMarks || "N/A"}</span>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <Label className="text-right">Intermediate Stream:</Label>
+                                          <span className="col-span-3">{inquiry.intermediateStream || "N/A"}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Heard From:</Label>
+                                      <span className="col-span-3">{inquiry.heardFrom || "N/A"}</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Question:</Label>
+                                      <span className="col-span-3">{inquiry.question || "N/A"}</span>
+                                    </div>
+                                    {inquiry.course === "MDCAT" && (
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label className="text-right">Checkbox Field:</Label>
+                                        <span className="col-span-3">{inquiry.checkboxField ? "Yes" : "No"}</span>
+                                      </div>
+                                    )}
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Created At:</Label>
+                                      <span className="col-span-3">{inquiry.createdAt}</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label className="text-right">Read:</Label>
+                                      <span className="col-span-3">{inquiry.isRead ? "Yes" : "No"}</span>
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    {!inquiry.isRead && (
+                                      <Button onClick={() => handleMarkAsRead(inquiry.id)}>Mark as Read</Button>
+                                    )}
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              <Button variant="outline" size="icon" onClick={() => handleEditClick(inquiry)}>
                                 <Edit className="h-4 w-4" />
+                                <span className="sr-only">Edit</span>
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleConvert(inquiry)}
-                                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 p-2"
-                              >
-                                <UserPlus className="h-4 w-4" />
+                              <Button variant="destructive" size="icon" onClick={() => handleDeleteInquiry(inquiry.id)}>
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete</span>
                               </Button>
-                              {user?.role === "super_admin" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDelete(inquiry)}
-                                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100 p-2"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -954,7 +1146,7 @@ export default function InquiriesPage() {
         </Card>
 
         {/* Edit Dialog */}
-        {showEditForm && (
+        {/* {showEditForm && (
           <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -1150,6 +1342,187 @@ export default function InquiriesPage() {
                     Cancel
                   </Button>
                 </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )} */}
+        {selectedInquiry && (
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Edit Inquiry</DialogTitle>
+                <DialogDescription>Make changes to the inquiry details. Click save when you're done.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleEditSubmit} className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="edit-name"
+                    value={editFormData.name || ""}
+                    onChange={(e) => handleEditFormChange("name", e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-phone" className="text-right">
+                    Phone
+                  </Label>
+                  <Input
+                    id="edit-phone"
+                    value={editFormData.phone || ""}
+                    onChange={(e) => handleEditFormChange("phone", e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-email" className="text-right">
+                    Email
+                  </Label>
+                  <Input
+                    id="edit-email"
+                    value={editFormData.email || ""}
+                    onChange={(e) => handleEditFormChange("email", e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-course" className="text-right">
+                    Course
+                  </Label>
+                  <Select
+                    value={editFormData.course || ""}
+                    onValueChange={(value) => handleEditFormChange("course", value)}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MDCAT">MDCAT</SelectItem>
+                      <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {editFormData.course === "Intermediate" && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Gender</Label>
+                      <RadioGroup
+                        value={editFormData.gender || ""}
+                        onValueChange={(value) => handleEditFormChange("gender", value)}
+                        className="flex space-x-4 col-span-3"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="male" id="edit-gender-male" />
+                          <Label htmlFor="edit-gender-male">Male</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="female" id="edit-gender-female" />
+                          <Label htmlFor="edit-gender-female">Female</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="edit-matric-marks" className="text-right">
+                        Matric Marks
+                      </Label>
+                      <Input
+                        id="edit-matric-marks"
+                        type="number"
+                        value={editFormData.matricMarks || ""}
+                        onChange={(e) => handleEditFormChange("matricMarks", Number(e.target.value))}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="edit-out-of-marks" className="text-right">
+                        Out of Marks
+                      </Label>
+                      <Input
+                        id="edit-out-of-marks"
+                        type="number"
+                        value={editFormData.outOfMarks || ""}
+                        onChange={(e) => handleEditFormChange("outOfMarks", Number(e.target.value))}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Intermediate Stream</Label>
+                      <RadioGroup
+                        value={editFormData.intermediateStream || ""}
+                        onValueChange={(value) => handleEditFormChange("intermediateStream", value)}
+                        className="grid grid-cols-2 gap-4 col-span-3"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="FSc Pre-Engineering" id="edit-stream-pre-eng" />
+                          <Label htmlFor="edit-stream-pre-eng">FSc Pre-Engineering</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="FSc Medical" id="edit-stream-pre-med" />
+                          <Label htmlFor="edit-stream-pre-med">FSc Medical</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="FA IT" id="edit-stream-fa-it" />
+                          <Label htmlFor="edit-stream-fa-it">FA IT</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="ICS" id="edit-stream-ics" />
+                          <Label htmlFor="edit-stream-ics">ICS</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-heard-from" className="text-right">
+                    Heard From
+                  </Label>
+                  <Select
+                    value={editFormData.heardFrom || ""}
+                    onValueChange={(value) => handleEditFormChange("heardFrom", value)}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select an option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="facebook">Facebook</SelectItem>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="google">Google Search</SelectItem>
+                      <SelectItem value="friend">Friend/Family</SelectItem>
+                      <SelectItem value="advertisement">Advertisement</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-question" className="text-right">
+                    Question
+                  </Label>
+                  <Textarea
+                    id="edit-question"
+                    value={editFormData.question || ""}
+                    onChange={(e) => handleEditFormChange("question", e.target.value)}
+                    className="col-span-3 min-h-[100px]"
+                  />
+                </div>
+                {editFormData.course === "MDCAT" && (
+                  <div className="flex items-center space-x-2 col-span-4 justify-end">
+                    <Checkbox
+                      id="edit-checkbox-field"
+                      checked={editFormData.checkboxField}
+                      onCheckedChange={(checked) => handleEditFormChange("checkboxField", checked === true)}
+                    />
+                    <Label htmlFor="edit-checkbox-field">
+                      Interested to Visit Delta on 9th June for 2nd Free to attend MDCAT 2025 Session
+                    </Label>
+                  </div>
+                )}
+                <DialogFooter className="col-span-4">
+                  <Button type="submit">Save changes</Button>
+                </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
@@ -1414,6 +1787,87 @@ export default function InquiriesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <TabsContent value="button-usage" className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Inquiry Button Usage Statistics</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            {inquiryButtonStats ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="flex flex-col items-center justify-center p-4">
+                    <Flame className="h-8 w-8 text-red-500 mb-2" />
+                    <p className="text-lg font-semibold">Total Burns</p>
+                    <p className="text-2xl font-bold">{inquiryButtonStats.burnUnburnStats.totalBurns}</p>
+                  </Card>
+                  <Card className="flex flex-col items-center justify-center p-4">
+                    <Snowflake className="h-8 w-8 text-blue-500 mb-2" />
+                    <p className="text-lg font-semibold">Total Unburns</p>
+                    <p className="text-2xl font-bold">{inquiryButtonStats.burnUnburnStats.totalUnburns}</p>
+                  </Card>
+                  <Card className="flex flex-col items-center justify-center p-4">
+                    <p className="text-lg font-semibold">Total Inquiries</p>
+                    <p className="text-2xl font-bold">{inquiryButtonStats.burnUnburnStats.totalInquiries}</p>
+                  </Card>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Burn Progress</Label>
+                  <Progress value={inquiryButtonStats.burnUnburnStats.burnPercentage} className="h-3" />
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>{inquiryButtonStats.burnUnburnStats.burnPercentage.toFixed(2)}% Burned</span>
+                    <span>{inquiryButtonStats.burnUnburnStats.unburnPercentage.toFixed(2)}% Unburned</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Top Updaters</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Updater</TableHead>
+                        <TableHead className="text-right">Updates</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inquiryButtonStats.topUpdaters.map((updater, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{updater.updated_by}</TableCell>
+                          <TableCell className="text-right">{updater.update_count}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Status Counts</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Count</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inquiryButtonStats.statusCounts.map((status, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{status.status}</TableCell>
+                          <TableCell className="text-right">{status.update_count}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-gray-500">Loading button usage statistics...</p>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
 
       {/* Footer */}
       <div className="text-center py-8">

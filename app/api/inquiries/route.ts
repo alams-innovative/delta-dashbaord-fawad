@@ -3,24 +3,6 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-async function verifyRecaptcha(token: string): Promise<boolean> {
-  try {
-    const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
-    })
-
-    const data = await response.json()
-    return data.success === true
-  } catch (error) {
-    console.error("reCAPTCHA verification error:", error)
-    return false
-  }
-}
-
 export async function GET() {
   try {
     console.log("📥 GET /api/inquiries - Fetching inquiries...")
@@ -104,19 +86,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields: name, phone" }, { status: 400 })
     }
 
-    // Verify reCAPTCHA
-    if (!data.recaptchaToken) {
-      console.error("❌ Missing reCAPTCHA token")
-      return NextResponse.json({ error: "reCAPTCHA verification required" }, { status: 400 })
-    }
-
-    const isRecaptchaValid = await verifyRecaptcha(data.recaptchaToken)
-    if (!isRecaptchaValid) {
-      console.error("❌ reCAPTCHA verification failed")
-      return NextResponse.json({ error: "reCAPTCHA verification failed" }, { status: 400 })
-    }
-
-    console.log("✅ reCAPTCHA verification successful")
+    // Removed reCAPTCHA verification
 
     // Check if DATABASE_URL exists
     if (!process.env.DATABASE_URL) {

@@ -13,10 +13,6 @@ import type { useToast } from "@/hooks/use-toast"
 
 interface MDCATInquiryFormProps {
   onSuccess: () => void
-  recaptchaLoaded: boolean
-  recaptchaToken: string | null
-  setRecaptchaToken: (token: string | null) => void
-  RECAPTCHA_SITE_KEY: string
   GOOGLE_ADS_ID: string
   CONVERSION_LABEL: string
   trackConversion: () => void
@@ -25,10 +21,6 @@ interface MDCATInquiryFormProps {
 
 export function MDCATInquiryForm({
   onSuccess,
-  recaptchaLoaded,
-  recaptchaToken,
-  setRecaptchaToken,
-  RECAPTCHA_SITE_KEY,
   GOOGLE_ADS_ID,
   CONVERSION_LABEL,
   trackConversion,
@@ -52,15 +44,6 @@ export function MDCATInquiryForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!recaptchaToken) {
-      toast({
-        title: "Error",
-        description: "Please complete the reCAPTCHA verification.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSubmitting(true)
 
     console.log("🚀 Submitting MDCAT inquiry:", formData)
@@ -73,7 +56,6 @@ export function MDCATInquiryForm({
         },
         body: JSON.stringify({
           ...formData,
-          recaptchaToken,
         }),
       })
 
@@ -99,10 +81,6 @@ export function MDCATInquiryForm({
           checkboxField: false,
           course: "MDCAT",
         })
-        setRecaptchaToken(null)
-        if (window.grecaptcha) {
-          window.grecaptcha.reset()
-        }
         onSuccess()
       } else {
         const errorData = await response.json()
@@ -116,10 +94,6 @@ export function MDCATInquiryForm({
         description: "Failed to submit inquiry. Please try again.",
         variant: "destructive",
       })
-      if (window.grecaptcha) {
-        window.grecaptcha.reset()
-      }
-      setRecaptchaToken(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -220,16 +194,7 @@ export function MDCATInquiryForm({
             </Label>
           </div>
 
-          {/* reCAPTCHA */}
-          <div className="flex justify-center">
-            {recaptchaLoaded ? (
-              <div className="g-recaptcha" data-sitekey={RECAPTCHA_SITE_KEY} data-callback="onRecaptchaChange"></div>
-            ) : (
-              <div className="text-sm text-gray-500">Loading reCAPTCHA...</div>
-            )}
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isSubmitting || !recaptchaToken}>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : "Submit Inquiry"}
           </Button>
         </form>

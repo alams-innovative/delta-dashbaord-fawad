@@ -12,10 +12,6 @@ import type { useToast } from "@/hooks/use-toast"
 
 interface IntermediateInquiryFormProps {
   onSuccess: () => void
-  recaptchaLoaded: boolean
-  recaptchaToken: string | null
-  setRecaptchaToken: (token: string | null) => void
-  RECAPTCHA_SITE_KEY: string
   GOOGLE_ADS_ID: string
   CONVERSION_LABEL: string
   trackConversion: () => void
@@ -24,10 +20,6 @@ interface IntermediateInquiryFormProps {
 
 export function IntermediateInquiryForm({
   onSuccess,
-  recaptchaLoaded,
-  recaptchaToken,
-  setRecaptchaToken,
-  RECAPTCHA_SITE_KEY,
   GOOGLE_ADS_ID,
   CONVERSION_LABEL,
   trackConversion,
@@ -52,15 +44,6 @@ export function IntermediateInquiryForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!recaptchaToken) {
-      toast({
-        title: "Error",
-        description: "Please complete the reCAPTCHA verification.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSubmitting(true)
 
     console.log("🚀 Submitting Intermediate inquiry:", formData)
@@ -75,7 +58,6 @@ export function IntermediateInquiryForm({
           ...formData,
           matricMarks: formData.matricMarks ? Number.parseInt(formData.matricMarks) : null,
           outOfMarks: formData.outOfMarks ? Number.parseInt(formData.outOfMarks) : null,
-          recaptchaToken,
         }),
       })
 
@@ -102,10 +84,6 @@ export function IntermediateInquiryForm({
           question: "",
           course: "Intermediate",
         })
-        setRecaptchaToken(null)
-        if (window.grecaptcha) {
-          window.grecaptcha.reset()
-        }
         onSuccess()
       } else {
         const errorData = await response.json()
@@ -119,10 +97,6 @@ export function IntermediateInquiryForm({
         description: "Failed to submit inquiry. Please try again.",
         variant: "destructive",
       })
-      if (window.grecaptcha) {
-        window.grecaptcha.reset()
-      }
-      setRecaptchaToken(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -246,16 +220,7 @@ export function IntermediateInquiryForm({
             />
           </div>
 
-          {/* reCAPTCHA */}
-          <div className="flex justify-center">
-            {recaptchaLoaded ? (
-              <div className="g-recaptcha" data-sitekey={RECAPTCHA_SITE_KEY} data-callback="onRecaptchaChange"></div>
-            ) : (
-              <div className="text-sm text-gray-500">Loading reCAPTCHA...</div>
-            )}
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isSubmitting || !recaptchaToken}>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : "Submit Inquiry"}
           </Button>
         </form>
