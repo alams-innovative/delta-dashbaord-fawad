@@ -1,86 +1,31 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" // Import RadioGroup
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
-import Script from "next/script"
-
-declare global {
-  interface Window {
-    grecaptcha: any
-    onRecaptchaChange: (token: string) => void
-    gtag: (...args: any[]) => void
-    dataLayer: any[]
-  }
-}
 
 export default function InquiryPage() {
   const [selectedForm, setSelectedForm] = useState<"none" | "mdcat" | "intermediate">("none")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [recaptchaLoaded, setRecaptchaLoaded] = useState(false)
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
     heardFrom: "",
     question: "",
-    checkboxField: false,
-    course: "", // Initialize as empty, will be set by form type
-    gender: "", // New field
-    matricMarks: "", // New field
-    outOfMarks: "", // New field
+    course: "",
+    gender: "",
+    matricMarks: "",
+    outOfMarks: "",
   })
   const { toast } = useToast()
-
-  // Your reCAPTCHA site key (this is meant to be public)
-  const RECAPTCHA_SITE_KEY = "6LfhCFErAAAAAA4npK1JUOAus_k07d6rXy0Q9PlD"
-
-  // Google Ads conversion tracking constants
-  const GOOGLE_ADS_ID = "AW-17131753970"
-  const CONVERSION_LABEL = "qXJICKfewNAaEPKjh-k_"
-
-  useEffect(() => {
-    // Set up the global callback function
-    window.onRecaptchaChange = (token: string) => {
-      console.log("✅ reCAPTCHA completed:", token ? "Token received" : "No token")
-      setRecaptchaToken(token)
-    }
-
-    // Load reCAPTCHA script
-    const script = document.createElement("script")
-    script.src = "https://www.google.com/recaptcha/api.js"
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      console.log("✅ reCAPTCHA script loaded successfully")
-      setRecaptchaLoaded(true)
-    }
-    script.onerror = () => {
-      console.error("❌ Failed to load reCAPTCHA script")
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      // Cleanup script on unmount
-      const existingScript = document.querySelector('script[src="https://www.google.com/recaptcha/api.js"]')
-      if (existingScript) {
-        document.head.removeChild(existingScript)
-      }
-      // Clean up global function
-      if (window.onRecaptchaChange) {
-        delete window.onRecaptchaChange
-      }
-    }
-  }, [])
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -93,59 +38,23 @@ export default function InquiryPage() {
       email: "",
       heardFrom: "",
       question: "",
-      checkboxField: false,
-      course: formType === "mdcat" ? "MDCAT" : "", // Set default course based on form type
+      course: formType === "mdcat" ? "MDCAT" : "",
       gender: "",
       matricMarks: "",
       outOfMarks: "",
     })
-    setRecaptchaToken(null)
-    if (window.grecaptcha) {
-      window.grecaptcha.reset()
-    }
   }
 
   const handleFormSelection = (type: "mdcat" | "intermediate") => {
     setSelectedForm(type)
-    resetForm(type) // Reset form data when switching types
+    resetForm(type)
     if (type === "mdcat") {
       setFormData((prev) => ({ ...prev, course: "MDCAT" }))
     }
   }
 
-  // Function to track conversion
-  const trackConversion = () => {
-    console.log("🔍 Tracking conversion with Google Ads")
-
-    if (typeof window !== "undefined" && window.gtag) {
-      try {
-        // Send the conversion event to Google Ads
-        window.gtag("event", "conversion", {
-          send_to: `${GOOGLE_ADS_ID}/${CONVERSION_LABEL}`,
-          value: 1.0,
-          currency: "PKR",
-          transaction_id: Date.now().toString(),
-        })
-        console.log("✅ Conversion event sent to Google Ads")
-      } catch (error) {
-        console.error("❌ Error sending conversion event:", error)
-      }
-    } else {
-      console.error("❌ Google gtag not available")
-    }
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    if (!recaptchaToken) {
-      toast({
-        title: "Error",
-        description: "Please complete the reCAPTCHA verification.",
-        variant: "destructive",
-      })
-      return
-    }
 
     setIsSubmitting(true)
 
@@ -161,7 +70,6 @@ export default function InquiryPage() {
           ...formData,
           matricMarks: formData.matricMarks ? Number(formData.matricMarks) : null,
           outOfMarks: formData.outOfMarks ? Number(formData.outOfMarks) : null,
-          recaptchaToken,
         }),
       })
 
@@ -171,16 +79,12 @@ export default function InquiryPage() {
         const result = await response.json()
         console.log("✅ Inquiry submitted successfully:", result)
 
-        // Track conversion with Google Ads
-        trackConversion()
-
         toast({
           title: "Success!",
           description: "Your inquiry has been submitted successfully. We'll get back to you soon!",
         })
 
-        // Reset form and reCAPTCHA
-        setSelectedForm("none") // Go back to selection screen
+        setSelectedForm("none")
         resetForm(selectedForm)
       } else {
         const errorData = await response.json()
@@ -194,11 +98,6 @@ export default function InquiryPage() {
         description: "Failed to submit inquiry. Please try again.",
         variant: "destructive",
       })
-      // Reset reCAPTCHA on error
-      if (window.grecaptcha) {
-        window.grecaptcha.reset()
-      }
-      setRecaptchaToken(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -206,17 +105,6 @@ export default function InquiryPage() {
 
   return (
     <>
-      {/* Google Ads gtag - Using Next.js Script component for better performance */}
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`} strategy="afterInteractive" />
-      <Script id="google-analytics" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GOOGLE_ADS_ID}');
-        `}
-      </Script>
-
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl">
           <CardHeader>
@@ -415,35 +303,8 @@ export default function InquiryPage() {
                   />
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="checkboxField"
-                    checked={formData.checkboxField}
-                    onCheckedChange={(checked) => handleInputChange("checkboxField", checked === true)}
-                  />
-                  <Label
-                    htmlFor="checkboxField"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Interested to Visit Delta on 9th June for 2nd Free to attend MDCAT 2025 Session
-                  </Label>
-                </div>
-
-                {/* reCAPTCHA */}
-                <div className="flex justify-center">
-                  {recaptchaLoaded ? (
-                    <div
-                      className="g-recaptcha"
-                      data-sitekey={RECAPTCHA_SITE_KEY}
-                      data-callback="onRecaptchaChange"
-                    ></div>
-                  ) : (
-                    <div className="text-sm text-gray-500">Loading reCAPTCHA...</div>
-                  )}
-                </div>
-
                 <div className="flex space-x-3">
-                  <Button type="submit" className="flex-1" disabled={isSubmitting || !recaptchaToken}>
+                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
                     {isSubmitting ? "Submitting..." : "Submit Inquiry"}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setSelectedForm("none")} className="flex-1">

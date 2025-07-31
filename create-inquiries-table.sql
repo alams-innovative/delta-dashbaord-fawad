@@ -6,17 +6,17 @@ CREATE TABLE IF NOT EXISTS inquiries (
     email VARCHAR(255),
     heard_from VARCHAR(255),
     question TEXT,
-    checkbox_field BOOLEAN DEFAULT FALSE,
+    -- Removed: checkbox_field BOOLEAN DEFAULT FALSE,
     is_read BOOLEAN DEFAULT FALSE,
     whatsapp_welcome_sent BOOLEAN DEFAULT FALSE,
     whatsapp_followup_sent BOOLEAN DEFAULT FALSE,
     whatsapp_reminder_sent BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    course VARCHAR(255) DEFAULT 'MDCAT', -- Existing course field
-    gender VARCHAR(50), -- New: Gender field
-    matric_marks INTEGER, -- New: Matric Marks
-    out_of_marks INTEGER -- New: Out of Marks
+    course VARCHAR(255) DEFAULT 'MDCAT',
+    gender VARCHAR(50),
+    matric_marks INTEGER,
+    out_of_marks INTEGER
 );
 
 -- Add some sample data if table is empty
