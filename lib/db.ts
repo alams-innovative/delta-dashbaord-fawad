@@ -92,12 +92,16 @@ export async function createInquiry(data: {
   question?: string
   checkbox_field?: boolean
   course?: string
+  gender?: string // New field
+  matric_marks?: number // New field
+  out_of_marks?: number // New field
+  intermediate_stream?: string // New field
 }) {
   try {
     console.log("📝 Creating inquiry:", data.name)
     const result = await sql`
-      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course)
-      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heard_from || null}, ${data.question || null}, ${data.checkbox_field || false}, ${data.course || "MDCAT"})
+      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course, gender, matric_marks, out_of_marks, intermediate_stream)
+      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heard_from || null}, ${data.question || null}, ${data.checkbox_field || false}, ${data.course || "MDCAT"}, ${data.gender || null}, ${data.matric_marks || null}, ${data.out_of_marks || null}, ${data.intermediate_stream || null})
       RETURNING *
     `
     console.log("✅ Inquiry created successfully")
@@ -434,6 +438,10 @@ export async function updateInquiry(
     question?: string
     checkbox_field?: boolean
     course?: string
+    gender?: string // New field
+    matric_marks?: number // New field
+    out_of_marks?: number // New field
+    intermediate_stream?: string // New field
   },
 ) {
   try {
@@ -448,6 +456,10 @@ export async function updateInquiry(
         question = COALESCE(${data.question}, question),
         checkbox_field = COALESCE(${data.checkbox_field}, checkbox_field),
         course = COALESCE(${data.course}, course),
+        gender = COALESCE(${data.gender}, gender),
+        matric_marks = COALESCE(${data.matric_marks}, matric_marks),
+        out_of_marks = COALESCE(${data.out_of_marks}, out_of_marks),
+        intermediate_stream = COALESCE(${data.intermediate_stream}, intermediate_stream),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

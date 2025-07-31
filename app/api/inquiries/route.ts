@@ -33,7 +33,7 @@ export async function GET() {
 
     // Try to fetch inquiries from database
     const result = await sql`
-      SELECT * FROM inquiries ORDER BY created_at DESC
+      SELECT id, name, phone, email, heard_from, question, checkbox_field, is_read, whatsapp_welcome_sent, whatsapp_followup_sent, whatsapp_reminder_sent, created_at, course, gender, matric_marks, out_of_marks, intermediate_stream FROM inquiries ORDER BY created_at DESC
     `
 
     console.log("📊 Raw database result:", result.length, "inquiries found")
@@ -73,7 +73,11 @@ export async function GET() {
         whatsapp_followup_sent: inquiry.whatsapp_followup_sent || false,
         whatsapp_reminder_sent: inquiry.whatsapp_reminder_sent || false,
         createdAt: formattedDate,
-        course: inquiry.course || "MDCAT", // Added course field
+        course: inquiry.course || "MDCAT",
+        gender: inquiry.gender || null, // New field
+        matricMarks: inquiry.matric_marks || null, // New field
+        outOfMarks: inquiry.out_of_marks || null, // New field
+        intermediateStream: inquiry.intermediate_stream || null, // New field
       }
     })
 
@@ -121,8 +125,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course)
-      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heardFrom || null}, ${data.question || null}, ${data.checkboxField || false}, ${data.course || "MDCAT"})
+      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course, gender, matric_marks, out_of_marks, intermediate_stream)
+      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heardFrom || null}, ${data.question || null}, ${data.checkboxField || false}, ${data.course || "MDCAT"}, ${data.gender || null}, ${data.matricMarks || null}, ${data.outOfMarks || null}, ${data.intermediateStream || null})
       RETURNING *
     `
 

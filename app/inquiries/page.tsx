@@ -38,9 +38,30 @@ import { Badge } from "@/components/ui/badge"
 import { WhatsAppButtons } from "@/components/whatsapp-buttons"
 import { useAuth } from "@/components/auth-provider"
 import { InquiryStatusButton } from "@/components/inquiry-status-button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" // Import RadioGroup
+
+interface Inquiry {
+  id: number
+  name: string
+  phone: string
+  email?: string
+  heardFrom?: string
+  question?: string
+  isRead: boolean
+  checkboxField: boolean
+  whatsapp_welcome_sent: boolean
+  whatsapp_followup_sent: boolean
+  whatsapp_reminder_sent: boolean
+  createdAt: string
+  course: string
+  gender?: string // New field
+  matricMarks?: number // New field
+  outOfMarks?: number // New field
+  intermediateStream?: string // New field
+}
 
 export default function InquiriesPage() {
-  const [inquiries, setInquiries] = useState<any[]>([])
+  const [inquiries, setInquiries] = useState<Inquiry[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
@@ -62,14 +83,18 @@ export default function InquiriesPage() {
     heardFrom: "",
     question: "",
     checkboxField: false,
-    course: "", // Add this line
+    course: "",
+    gender: "", // New field
+    matricMarks: "", // New field
+    outOfMarks: "", // New field
+    intermediateStream: "", // New field
   })
 
-  const [viewingInquiry, setViewingInquiry] = useState<any>(null)
+  const [viewingInquiry, setViewingInquiry] = useState<Inquiry | null>(null)
   const [showViewDialog, setShowViewDialog] = useState(false)
 
   const [showConvertDialog, setShowConvertDialog] = useState(false)
-  const [convertingInquiry, setConvertingInquiry] = useState<any>(null)
+  const [convertingInquiry, setConvertingInquiry] = useState<Inquiry | null>(null)
   const [convertFormData, setConvertFormData] = useState({
     fatherName: "",
     feePaid: 0,
@@ -88,7 +113,7 @@ export default function InquiriesPage() {
       if (!inquiriesResponse.ok) {
         throw new Error("Failed to fetch inquiries")
       }
-      const inquiriesData = await inquiriesResponse.json()
+      const inquiriesData: Inquiry[] = await inquiriesResponse.json()
 
       if (Array.isArray(inquiriesData)) {
         setInquiries(inquiriesData)
@@ -99,13 +124,13 @@ export default function InquiriesPage() {
         const currentMonth = today.getMonth()
         const currentYear = today.getFullYear()
 
-        const thisMonthInquiries = inquiriesData.filter((inquiry: any) => {
+        const thisMonthInquiries = inquiriesData.filter((inquiry: Inquiry) => {
           const inquiryDate = new Date(inquiry.createdAt)
           return inquiryDate.getMonth() === currentMonth && inquiryDate.getFullYear() === currentYear
         })
         setNewCount(thisMonthInquiries.length)
 
-        const pendingInquiries = inquiriesData.filter((inquiry: any) => !inquiry.isRead)
+        const pendingInquiries = inquiriesData.filter((inquiry: Inquiry) => !inquiry.isRead)
         setPendingCount(pendingInquiries.length)
       } else {
         console.error("API did not return an array:", inquiriesData)
@@ -151,7 +176,9 @@ export default function InquiriesPage() {
       return (
         (inquiry.name || "").toLowerCase().includes(searchLower) ||
         (inquiry.phone || "").toLowerCase().includes(searchLower) ||
-        (inquiry.email || "").toLowerCase().includes(searchLower)
+        (inquiry.email || "").toLowerCase().includes(searchLower) ||
+        (inquiry.course || "").toLowerCase().includes(searchLower) || // Search by course
+        (inquiry.intermediateStream || "").toLowerCase().includes(searchLower) // Search by intermediate stream
       )
     })
     .sort((a, b) => {
@@ -206,7 +233,7 @@ export default function InquiriesPage() {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc")
   }
 
-  const handleEdit = (inquiry: any) => {
+  const handleEdit = (inquiry: Inquiry) => {
     setEditFormData({
       name: inquiry.name || "",
       phone: inquiry.phone || "",
@@ -214,18 +241,22 @@ export default function InquiriesPage() {
       heardFrom: inquiry.heardFrom || "",
       question: inquiry.question || "",
       checkboxField: inquiry.checkboxField || false,
-      course: inquiry.course || "MDCAT", // Add this line, default to MDCAT
+      course: inquiry.course || "MDCAT",
+      gender: inquiry.gender || "",
+      matricMarks: inquiry.matricMarks?.toString() || "",
+      outOfMarks: inquiry.outOfMarks?.toString() || "",
+      intermediateStream: inquiry.intermediateStream || "",
     })
     setEditingId(inquiry.id)
     setShowEditForm(true)
   }
 
-  const handleView = (inquiry: any) => {
+  const handleView = (inquiry: Inquiry) => {
     setViewingInquiry(inquiry)
     setShowViewDialog(true)
   }
 
-  const handleConvert = (inquiry: any) => {
+  const handleConvert = (inquiry: Inquiry) => {
     setConvertingInquiry(inquiry)
     setConvertFormData({
       fatherName: "",
@@ -239,7 +270,7 @@ export default function InquiriesPage() {
     setShowConvertDialog(true)
   }
 
-  const handleDelete = async (inquiry: any) => {
+  const handleDelete = async (inquiry: Inquiry) => {
     if (user?.role !== "super_admin") {
       toast({
         title: "Access Denied",
@@ -291,7 +322,11 @@ export default function InquiriesPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify({
+          ...editFormData,
+          matricMarks: editFormData.matricMarks ? Number.parseInt(editFormData.matricMarks) : null,
+          outOfMarks: editFormData.outOfMarks ? Number.parseInt(editFormData.outOfMarks) : null,
+        }),
       })
 
       if (response.ok) {
@@ -325,11 +360,11 @@ export default function InquiriesPage() {
 
     try {
       const registrationData = {
-        name: convertingInquiry.name,
+        name: convertingInquiry?.name,
         father_name: convertFormData.fatherName,
         cnic: convertFormData.cnic,
-        phone: convertingInquiry.phone,
-        email: convertingInquiry.email,
+        phone: convertingInquiry?.phone,
+        email: convertingInquiry?.email,
         fee_paid: convertFormData.feePaid,
         fee_pending: convertFormData.feePending,
         concession: convertFormData.concession,
@@ -455,7 +490,7 @@ export default function InquiriesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by name, phone, or email..."
+              placeholder="Search by name, phone, email, or course..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-white/50 border-gray-200 focus:border-blue-400"
@@ -508,7 +543,11 @@ export default function InquiriesPage() {
                       <TableHead className="min-w-[100px]">Phone</TableHead>
                       <TableHead className="min-w-[120px] hidden md:table-cell">Email</TableHead>
                       <TableHead className="min-w-[80px] hidden lg:table-cell">Source</TableHead>
-                      <TableHead className="min-w-[100px] hidden lg:table-cell">Course</TableHead> {/* Add this line */}
+                      <TableHead className="min-w-[100px] hidden lg:table-cell">Course</TableHead>
+                      <TableHead className="min-w-[80px] hidden lg:table-cell">Gender</TableHead> {/* New */}
+                      <TableHead className="min-w-[100px] hidden lg:table-cell">Matric Marks</TableHead> {/* New */}
+                      <TableHead className="min-w-[100px] hidden lg:table-cell">Intermediate Stream</TableHead>{" "}
+                      {/* New */}
                       <TableHead className="w-[80px] hidden lg:table-cell">Attend Session</TableHead>
                       <TableHead
                         className="cursor-pointer select-none min-w-[100px] hidden lg:table-cell"
@@ -533,7 +572,9 @@ export default function InquiriesPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center">
+                        <TableCell colSpan={12} className="text-center">
+                          {" "}
+                          {/* Adjusted colspan */}
                           <div className="flex justify-center items-center py-4">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                             <span className="ml-2">Loading inquiries...</span>
@@ -542,7 +583,9 @@ export default function InquiriesPage() {
                       </TableRow>
                     ) : currentInquiries.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
+                        <TableCell colSpan={12} className="text-center py-8">
+                          {" "}
+                          {/* Adjusted colspan */}
                           <div className="flex flex-col items-center justify-center">
                             <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
                             <p className="text-lg font-medium text-gray-700">
@@ -557,15 +600,23 @@ export default function InquiriesPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      currentInquiries.map((inquiry: any) => (
+                      currentInquiries.map((inquiry: Inquiry) => (
                         <TableRow key={inquiry.id}>
                           <TableCell className="font-medium">{inquiry.id}</TableCell>
                           <TableCell className="font-medium">{inquiry.name}</TableCell>
                           <TableCell>{inquiry.phone}</TableCell>
                           <TableCell className="hidden md:table-cell">{inquiry.email || "—"}</TableCell>
                           <TableCell className="hidden lg:table-cell">{inquiry.heardFrom || "Unknown"}</TableCell>
-                          <TableCell className="hidden lg:table-cell">{inquiry.course || "MDCAT"}</TableCell>{" "}
-                          {/* Add this line */}
+                          <TableCell className="hidden lg:table-cell">{inquiry.course || "N/A"}</TableCell>
+                          <TableCell className="hidden lg:table-cell">{inquiry.gender || "N/A"}</TableCell> {/* New */}
+                          <TableCell className="hidden lg:table-cell">
+                            {inquiry.matricMarks !== null && inquiry.outOfMarks !== null
+                              ? `${inquiry.matricMarks}/${inquiry.outOfMarks}`
+                              : "N/A"}
+                          </TableCell>{" "}
+                          {/* New */}
+                          <TableCell className="hidden lg:table-cell">{inquiry.intermediateStream || "N/A"}</TableCell>{" "}
+                          {/* New */}
                           <TableCell className="hidden lg:table-cell">
                             {inquiry.checkboxField ? (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -666,7 +717,7 @@ export default function InquiriesPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {currentInquiries.map((inquiry: any) => (
+                  {currentInquiries.map((inquiry: Inquiry) => (
                     <Card key={inquiry.id} className="border border-gray-200 hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
@@ -696,9 +747,27 @@ export default function InquiriesPage() {
                             <p className="font-medium">{inquiry.heardFrom || "Unknown"}</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Course:</span> {/* Add this block */}
-                            <p className="font-medium">{inquiry.course || "MDCAT"}</p>
+                            <span className="text-gray-500">Course:</span>
+                            <p className="font-medium">{inquiry.course || "N/A"}</p>
                           </div>
+                          {inquiry.gender && (
+                            <div>
+                              <span className="text-gray-500">Gender:</span>
+                              <p className="font-medium">{inquiry.gender}</p>
+                            </div>
+                          )}
+                          {inquiry.matricMarks !== null && inquiry.outOfMarks !== null && (
+                            <div>
+                              <span className="text-gray-500">Matric Marks:</span>
+                              <p className="font-medium">{`${inquiry.matricMarks}/${inquiry.outOfMarks}`}</p>
+                            </div>
+                          )}
+                          {inquiry.intermediateStream && (
+                            <div>
+                              <span className="text-gray-500">Intermediate Stream:</span>
+                              <p className="font-medium">{inquiry.intermediateStream}</p>
+                            </div>
+                          )}
                           <div>
                             <span className="text-gray-500">Submitted:</span>
                             <p className="font-medium text-xs">{formatDate(inquiry.createdAt)}</p>
@@ -949,25 +1018,94 @@ export default function InquiriesPage() {
                       <option value="other">Other</option>
                     </select>
                   </div>
-                  {/* Add the new Course dropdown here */}
                   <div className="space-y-2">
                     <Label htmlFor="editCourse" className="text-gray-700 font-medium">
-                      Interested Course *
+                      Course *
                     </Label>
                     <select
                       id="editCourse"
                       value={editFormData.course}
-                      onChange={(e) => setEditFormData({ ...editFormData, course: e.target.value })}
+                      onChange={(e) => {
+                        setEditFormData({
+                          ...editFormData,
+                          course: e.target.value,
+                          intermediateStream: e.target.value === "Intermediate" ? editFormData.intermediateStream : "",
+                        })
+                      }}
                       className="w-full px-3 py-2 bg-white/50 border border-gray-200 rounded-md focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
                       required
                     >
-                      <option value="Matric">Matric</option>
                       <option value="MDCAT">MDCAT</option>
-                      <option value="FSc Pre-Engineering">FSc Pre-Engineering</option>
-                      <option value="FSc Medical">FSc Medical</option>
-                      <option value="ICS">ICS</option>
+                      <option value="Intermediate">Intermediate</option>
                     </select>
                   </div>
+
+                  {editFormData.course === "Intermediate" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="editGender" className="text-gray-700 font-medium">
+                          Gender *
+                        </Label>
+                        <RadioGroup
+                          value={editFormData.gender}
+                          onValueChange={(value) => setEditFormData({ ...editFormData, gender: value })}
+                          className="flex space-x-4"
+                          required
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="male" id="edit-gender-male" />
+                            <Label htmlFor="edit-gender-male">Male</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="female" id="edit-gender-female" />
+                            <Label htmlFor="edit-gender-female">Female</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editMatricMarks" className="text-gray-700 font-medium">
+                          Matric Marks
+                        </Label>
+                        <Input
+                          id="editMatricMarks"
+                          type="number"
+                          value={editFormData.matricMarks}
+                          onChange={(e) => setEditFormData({ ...editFormData, matricMarks: e.target.value })}
+                          className="bg-white/50 border-gray-200 focus:border-blue-400"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editOutOfMarks" className="text-gray-700 font-medium">
+                          Out of Marks
+                        </Label>
+                        <Input
+                          id="editOutOfMarks"
+                          type="number"
+                          value={editFormData.outOfMarks}
+                          onChange={(e) => setEditFormData({ ...editFormData, outOfMarks: e.target.value })}
+                          className="bg-white/50 border-gray-200 focus:border-blue-400"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editIntermediateStream" className="text-gray-700 font-medium">
+                          Intermediate Stream *
+                        </Label>
+                        <select
+                          id="editIntermediateStream"
+                          value={editFormData.intermediateStream}
+                          onChange={(e) => setEditFormData({ ...editFormData, intermediateStream: e.target.value })}
+                          className="w-full px-3 py-2 bg-white/50 border border-gray-200 rounded-md focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          required
+                        >
+                          <option value="">Select Stream</option>
+                          <option value="FSc Pre-Engineering">FSc Pre-Engineering</option>
+                          <option value="FSc Medical">FSc Medical</option>
+                          <option value="FA IT">FA IT</option>
+                          <option value="ICS">ICS</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="editQuestion" className="text-gray-700 font-medium">
@@ -1045,11 +1183,34 @@ export default function InquiriesPage() {
                       {viewingInquiry.heardFrom || "Not specified"}
                     </div>
                   </div>
-                  {/* Add the new Course display here */}
                   <div className="space-y-2">
-                    <Label className="text-gray-700 font-medium">Interested Course</Label>
+                    <Label className="text-gray-700 font-medium">Course</Label>
                     <div className="p-3 bg-gray-50 rounded-md border">{viewingInquiry.course || "Not specified"}</div>
                   </div>
+                  {viewingInquiry.course === "Intermediate" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Gender</Label>
+                        <div className="p-3 bg-gray-50 rounded-md border">
+                          {viewingInquiry.gender || "Not specified"}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Matric Marks</Label>
+                        <div className="p-3 bg-gray-50 rounded-md border">
+                          {viewingInquiry.matricMarks !== null && viewingInquiry.outOfMarks !== null
+                            ? `${viewingInquiry.matricMarks}/${viewingInquiry.outOfMarks}`
+                            : "Not provided"}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Intermediate Stream</Label>
+                        <div className="p-3 bg-gray-50 rounded-md border">
+                          {viewingInquiry.intermediateStream || "Not specified"}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-gray-700 font-medium">Question/Message</Label>
@@ -1098,6 +1259,27 @@ export default function InquiriesPage() {
                     <span className="font-medium text-blue-700">Email:</span>{" "}
                     {convertingInquiry?.email || "Not provided"}
                   </div>
+                  <div>
+                    <span className="font-medium text-blue-700">Course:</span>{" "}
+                    {convertingInquiry?.course || "Not provided"}
+                  </div>
+                  {convertingInquiry?.gender && (
+                    <div>
+                      <span className="font-medium text-blue-700">Gender:</span> {convertingInquiry?.gender}
+                    </div>
+                  )}
+                  {convertingInquiry?.matricMarks !== null && convertingInquiry?.outOfMarks !== null && (
+                    <div>
+                      <span className="font-medium text-blue-700">Matric Marks:</span>{" "}
+                      {`${convertingInquiry?.matricMarks}/${convertingInquiry?.outOfMarks}`}
+                    </div>
+                  )}
+                  {convertingInquiry?.intermediateStream && (
+                    <div>
+                      <span className="font-medium text-blue-700">Intermediate Stream:</span>{" "}
+                      {convertingInquiry?.intermediateStream}
+                    </div>
+                  )}
                   <div>
                     <span className="font-medium text-blue-700">Attend Session:</span>{" "}
                     {convertingInquiry?.checkboxField ? "Yes" : "No"}
@@ -1235,9 +1417,7 @@ export default function InquiriesPage() {
 
       {/* Footer */}
       <div className="text-center py-8">
-        <p className="text-gray-500 text-sm">
-          Powered by <span className="font-semibold text-gray-700">Alams Innovate</span>
-        </p>
+        <p className="text-gray-500 text-sm">&copy; {new Date().getFullYear()} Delta. All rights reserved.</p>
       </div>
     </div>
   )
