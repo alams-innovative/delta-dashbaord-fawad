@@ -1306,5 +1306,7 @@ export default function InquiriesPage() {
         <p className="text-gray-500 text-sm">
           Powered by <span className="font-semibold text-gray-700">Alams Innovate</span>
         </p>
-      </div>\
+      </div>
     </div>
+  )
+}
