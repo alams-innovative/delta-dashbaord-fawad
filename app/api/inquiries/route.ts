@@ -3,7 +3,23 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-// Removed verifyRecaptcha function as it's no longer needed
+async function verifyRecaptcha(token: string): Promise<boolean> {
+  try {
+    const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
+    })
+
+    const data = await response.json()
+    return data.success === true
+  } catch (error) {
+    console.error("reCAPTCHA verification error:", error)
+    return false
+  }
+}
 
 export async function GET() {
   try {
@@ -17,7 +33,7 @@ export async function GET() {
 
     // Try to fetch inquiries from database
     const result = await sql`
-      SELECT id, name, phone, email, heard_from, question, checkbox_field, is_read, whatsapp_welcome_sent, whatsapp_followup_sent, whatsapp_reminder_sent, created_at, course, gender, matric_marks, out_of_marks, intermediate_stream FROM inquiries ORDER BY created_at DESC
+      SELECT * FROM inquiries ORDER BY created_at DESC
     `
 
     console.log("📊 Raw database result:", result.length, "inquiries found")
@@ -61,7 +77,6 @@ export async function GET() {
         gender: inquiry.gender || null, // New field
         matricMarks: inquiry.matric_marks || null, // New field
         outOfMarks: inquiry.out_of_marks || null, // New field
-        intermediateStream: inquiry.intermediate_stream || null, // New field
       }
     })
 
@@ -88,7 +103,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields: name, phone" }, { status: 400 })
     }
 
-    // Removed reCAPTCHA verification
+    // Verify reCAPTCHA
+    if (!data.recaptchaToken) {
+      console.error("❌ Missing reCAPTCHA token")
+      return NextResponse.json({ error: "reCAPTCHA verification required" }, { status: 400 })
+    }
+
+    const isRecaptchaValid = await verifyRecaptcha(data.recaptchaToken)
+    if (!isRecaptchaValid) {
+      console.error("❌ reCAPTCHA verification failed")
+      return NextResponse.json({ error: "reCAPTCHA verification failed" }, { status: 400 })
+    }
+
+    console.log("✅ reCAPTCHA verification successful")
 
     // Check if DATABASE_URL exists
     if (!process.env.DATABASE_URL) {
@@ -97,8 +124,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course, gender, matric_marks, out_of_marks, intermediate_stream)
-      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heardFrom || null}, ${data.question || null}, ${data.checkboxField || false}, ${data.course || "MDCAT"}, ${data.gender || null}, ${data.matricMarks || null}, ${data.outOfMarks || null}, ${data.intermediateStream || null})
+      INSERT INTO inquiries (name, phone, email, heard_from, question, checkbox_field, course, gender, matric_marks, out_of_marks)
+      VALUES (${data.name}, ${data.phone}, ${data.email || null}, ${data.heardFrom || null}, ${data.question || null}, ${data.checkboxField || false}, ${data.course || "MDCAT"}, ${data.gender || null}, ${data.matricMarks || null}, ${data.outOfMarks || null})
       RETURNING *
     `
 
