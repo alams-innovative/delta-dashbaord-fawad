@@ -3,6 +3,8 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
+// Removed verifyRecaptcha function as it's no longer needed
+
 export async function GET() {
   try {
     console.log("📥 GET /api/inquiries - Fetching inquiries...")

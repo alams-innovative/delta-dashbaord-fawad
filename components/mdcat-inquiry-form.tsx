@@ -13,6 +13,8 @@ import type { useToast } from "@/hooks/use-toast"
 
 interface MDCATInquiryFormProps {
   onSuccess: () => void
+  // Removed recaptchaLoaded, recaptchaToken, setRecaptchaToken
+  // Removed RECAPTCHA_SITE_KEY
   GOOGLE_ADS_ID: string
   CONVERSION_LABEL: string
   trackConversion: () => void
@@ -21,6 +23,8 @@ interface MDCATInquiryFormProps {
 
 export function MDCATInquiryForm({
   onSuccess,
+  // Removed recaptchaLoaded, recaptchaToken, setRecaptchaToken
+  // Removed RECAPTCHA_SITE_KEY
   GOOGLE_ADS_ID,
   CONVERSION_LABEL,
   trackConversion,
@@ -56,6 +60,7 @@ export function MDCATInquiryForm({
         },
         body: JSON.stringify({
           ...formData,
+          // Removed recaptchaToken from body
         }),
       })
 
@@ -81,6 +86,7 @@ export function MDCATInquiryForm({
           checkboxField: false,
           course: "MDCAT",
         })
+        // Removed setRecaptchaToken(null) and grecaptcha.reset()
         onSuccess()
       } else {
         const errorData = await response.json()
@@ -94,6 +100,7 @@ export function MDCATInquiryForm({
         description: "Failed to submit inquiry. Please try again.",
         variant: "destructive",
       })
+      // Removed grecaptcha.reset() and setRecaptchaToken(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -193,6 +200,8 @@ export function MDCATInquiryForm({
               Interested to Visit Delta on 9th June for 2nd Free to attend MDCAT 2025 Session
             </Label>
           </div>
+
+          {/* Removed reCAPTCHA div */}
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : "Submit Inquiry"}

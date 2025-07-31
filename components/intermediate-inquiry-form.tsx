@@ -12,6 +12,8 @@ import type { useToast } from "@/hooks/use-toast"
 
 interface IntermediateInquiryFormProps {
   onSuccess: () => void
+  // Removed recaptchaLoaded, recaptchaToken, setRecaptchaToken
+  // Removed RECAPTCHA_SITE_KEY
   GOOGLE_ADS_ID: string
   CONVERSION_LABEL: string
   trackConversion: () => void
@@ -20,6 +22,8 @@ interface IntermediateInquiryFormProps {
 
 export function IntermediateInquiryForm({
   onSuccess,
+  // Removed recaptchaLoaded, recaptchaToken, setRecaptchaToken
+  // Removed RECAPTCHA_SITE_KEY
   GOOGLE_ADS_ID,
   CONVERSION_LABEL,
   trackConversion,
@@ -58,6 +62,7 @@ export function IntermediateInquiryForm({
           ...formData,
           matricMarks: formData.matricMarks ? Number.parseInt(formData.matricMarks) : null,
           outOfMarks: formData.outOfMarks ? Number.parseInt(formData.outOfMarks) : null,
+          // Removed recaptchaToken from body
         }),
       })
 
@@ -84,6 +89,7 @@ export function IntermediateInquiryForm({
           question: "",
           course: "Intermediate",
         })
+        // Removed setRecaptchaToken(null) and grecaptcha.reset()
         onSuccess()
       } else {
         const errorData = await response.json()
@@ -97,6 +103,7 @@ export function IntermediateInquiryForm({
         description: "Failed to submit inquiry. Please try again.",
         variant: "destructive",
       })
+      // Removed grecaptcha.reset() and setRecaptchaToken(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -219,6 +226,8 @@ export function IntermediateInquiryForm({
               onChange={(e) => handleInputChange("question", e.target.value)}
             />
           </div>
+
+          {/* Removed reCAPTCHA div */}
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : "Submit Inquiry"}
