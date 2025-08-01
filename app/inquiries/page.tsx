@@ -3,19 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import {
-  Search,
-  Eye,
-  Edit,
-  UserPlus,
-  MessageSquare,
-  Users,
-  Calendar,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Trash2,
-} from "lucide-react"
+import { Search, Eye, Edit, UserPlus, MessageSquare, Users, Calendar, Clock, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,6 +39,7 @@ export default function InquiriesPage() {
   const [convertedCount, setConvertedCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [courseFilter, setCourseFilter] = useState<string>("all")
   const { user } = useAuth()
 
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -156,6 +145,17 @@ export default function InquiriesPage() {
         (inquiry.phone || "").toLowerCase().includes(searchLower) ||
         (inquiry.email || "").toLowerCase().includes(searchLower)
       )
+    })
+    .filter((inquiry) => {
+      if (courseFilter === "all") return true
+      if (courseFilter === "MDCAT") {
+        return inquiry.course === "MDCAT"
+      }
+      if (courseFilter === "other") {
+        const otherCourses = ["FSc Pre-Engineering", "FSc Medical", "ICS", "FA IT", "Matric"]
+        return otherCourses.includes(inquiry.course)
+      }
+      return true
     })
     .sort((a, b) => {
       // Sort by timestamp (createdAt)
@@ -484,6 +484,16 @@ export default function InquiriesPage() {
               <SelectItem value="200">200 per page</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={courseFilter} onValueChange={setCourseFilter}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-white/50">
+              <SelectValue placeholder="Filter by Course" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Courses</SelectItem>
+              <SelectItem value="MDCAT">MDCAT</SelectItem>
+              <SelectItem value="other">Other Courses</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Main Content Card */}
@@ -519,7 +529,6 @@ export default function InquiriesPage() {
                       <TableHead className="min-w-[120px] hidden md:table-cell">Email</TableHead>
                       <TableHead className="min-w-[80px] hidden lg:table-cell">Source</TableHead>
                       <TableHead className="min-w-[100px] hidden lg:table-cell">Course</TableHead> {/* Add this line */}
-                      <TableHead className="w-[80px] hidden lg:table-cell">Attend Session</TableHead>
                       <TableHead
                         className="cursor-pointer select-none min-w-[100px] hidden lg:table-cell"
                         onClick={handleSort}
@@ -576,17 +585,6 @@ export default function InquiriesPage() {
                           <TableCell className="hidden lg:table-cell">{inquiry.heardFrom || "Unknown"}</TableCell>
                           <TableCell className="hidden lg:table-cell">{inquiry.course || "MDCAT"}</TableCell>{" "}
                           {/* Add this line */}
-                          <TableCell className="hidden lg:table-cell">
-                            {inquiry.checkboxField ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="h-3 w-3 mr-1" /> Yes
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">
-                                <XCircle className="h-3 w-3 mr-1" /> No
-                              </Badge>
-                            )}
-                          </TableCell>
                           <TableCell className="text-xs text-gray-500 hidden lg:table-cell">
                             {formatDate(inquiry.createdAt)}
                           </TableCell>
@@ -685,14 +683,6 @@ export default function InquiriesPage() {
                               <Badge variant="outline" className="text-xs">
                                 ID: {inquiry.id}
                               </Badge>
-                              {inquiry.checkboxField && (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-green-50 text-green-700 border-green-200 text-xs"
-                                >
-                                  <CheckCircle className="h-3 w-3 mr-1" /> Attend Session
-                                </Badge>
-                              )}
                             </div>
                             <h3 className="font-semibold text-gray-900 text-lg">{inquiry.name}</h3>
                             <p className="text-gray-600 text-sm">{inquiry.phone}</p>
@@ -1032,18 +1022,6 @@ export default function InquiriesPage() {
                     className="bg-white/50 border-gray-200 focus:border-blue-400"
                   />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="editCheckboxField"
-                    checked={editFormData.checkboxField}
-                    onChange={(e) => setEditFormData({ ...editFormData, checkboxField: e.target.checked })}
-                    className="rounded border-gray-300"
-                  />
-                  <Label htmlFor="editCheckboxField" className="text-gray-700 font-medium">
-                    Attend Session
-                  </Label>
-                </div>
                 <div className="sticky bottom-0 bg-white border-t pt-4 flex space-x-3">
                   <Button
                     type="submit"
@@ -1127,12 +1105,6 @@ export default function InquiriesPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-gray-700 font-medium">Attend Session</Label>
-                    <div className="p-3 bg-gray-50 rounded-md border">
-                      {viewingInquiry.checkboxField ? "Yes" : "No"}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
                     <Label className="text-gray-700 font-medium">Submission Date</Label>
                     <div className="p-3 bg-gray-50 rounded-md border">{formatDate(viewingInquiry.createdAt)}</div>
                   </div>
@@ -1165,10 +1137,6 @@ export default function InquiriesPage() {
                   <div>
                     <span className="font-medium text-blue-700">Email:</span>{" "}
                     {convertingInquiry?.email || "Not provided"}
-                  </div>
-                  <div>
-                    <span className="font-medium text-blue-700">Attend Session:</span>{" "}
-                    {convertingInquiry?.checkboxField ? "Yes" : "No"}
                   </div>
                 </div>
               </div>
